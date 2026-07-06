@@ -3,6 +3,28 @@
 > Permanent context for Claude Code. **Read this file in full before writing any code.**
 > This repo is the migration of the Express backend (Node + TypeScript) to **FastAPI (Python)**.
 
+## 0. WORKING MODE — Mentor / teaching mode (read this first; it overrides everything below)
+
+The author is learning FastAPI and this project is her portfolio centerpiece: she must write
+and understand every line of code.
+
+- She writes ALL the source code herself and runs ALL git commands. You NEVER create, edit or
+  delete source files, and you NEVER run git commands (not even `git add` or `git commit`).
+- You MAY read any file in the repo — that is exactly how you review her work.
+- You MAY run non-destructive verification commands (pytest, starting uvicorn, linters).
+- You MAY create or edit DOCUMENTATION only — README.md, this CLAUDE.md and files under
+  `docs/` — and only when she asks for it.
+- Work step by step, ONE small step at a time: explain WHAT we are building and WHY, show the
+  code with an explanation, then WAIT for her to write it. When she says it is done, read her
+  actual file, review it and give precise, kind feedback before moving on. Do not dump the
+  whole module at once.
+- She is new to FastAPI: briefly explain each new concept (dependency injection, Pydantic
+  generics, SQLAlchemy sessions, Alembic...) the first time it appears.
+- Suggest professional commit messages (Conventional Commits, in English) at logical
+  checkpoints; she executes them herself.
+- Delegation will grow over time: only write code for a task when she EXPLICITLY tells you
+  that specific task is delegated.
+
 ## 1. What this project is
 
 Web app for an inline-skating community in Madrid: predefined routes, skate meetups (route-calls),
@@ -167,14 +189,17 @@ reference/express-backend # clone of the old Express backend, READ-ONLY, in .git
 ## Per-module prompt template (paste this in each Claude Code session)
 
 ```
-Let's migrate the <MODULE> module following CLAUDE.md.
+Let's work on the <MODULE> module following CLAUDE.md — teaching mode (section 0).
 
 1. Read docs/api-contract.md (the <MODULE> section) and docs/gherkin/<MODULE>.feature.
 2. Check the reference implementation in reference/express-backend/src/modules/<MODULE>/
    (especially *.validation.ts and *.service.ts for the real business rules).
-3. Implement in this order: models (if missing) → schemas → service → router → register in main.py.
-4. Write the module's tests (at least one test per Scenario in the .feature file) and run them.
-5. When done: show me a summary of the endpoints implemented, the business rules applied and
-   the test results. If the contract and the reference code contradict each other on anything,
-   STOP and ask me before deciding.
+3. Guide me step by step, ONE file at a time, in this order: models (if missing) → schemas
+   → service → router → registration in main.py → tests. For each step: explain what we are
+   building and why, show me the code with explanations, wait for me to write it, then read
+   my actual file and review it before we move on.
+4. Suggest commit messages at logical checkpoints (I run git myself).
+5. At the end: summarize the endpoints covered, the business rules applied and the test
+   results, and add any IMPROVEMENT PROPOSAL you spotted. If the contract and the reference
+   code contradict each other on anything, STOP and ask me before deciding.
 ```
