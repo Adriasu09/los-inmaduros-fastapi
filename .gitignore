@@ -216,3 +216,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Referencia de solo lectura para la migracion (repo dentro de repo)
+reference/
