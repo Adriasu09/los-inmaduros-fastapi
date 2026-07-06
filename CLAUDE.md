@@ -94,14 +94,14 @@ Recorded decisions (summary; full detail lives in Notion):
 - **D8**: (frontend, does not apply to this repo) pnpm + Vitest; no Vite as build tool.
 - **D9**: Telegram notification on route-call creation, WITHOUT N8N: direct call to the Bot API
   (`sendPhoto` with the cover image + caption, or `sendMessage` when there is no image) from
-  `shared/notifications.py`, fired with BackgroundTasks from the route-calls service.
+  `common/notifications.py`, fired with BackgroundTasks from the route-calls service.
   P2 and disabled by default: without `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` in the .env,
   it does nothing.
 
 ## 4. Architecture: domain-based structure
 
 One package per contract module. Each module contains `models.py`, `schemas.py`, `service.py`,
-`router.py` (+ `exceptions.py` if needed). Cross-cutting concerns live in `core/` and `shared/`.
+`router.py` (+ `exceptions.py` if needed). Cross-cutting concerns live in `core/` and `common/`.
 
 ```
 src/
@@ -119,7 +119,7 @@ src/
 ├── favorites/
 ├── photos/
 ├── app_config/           # the contract's "config" module (named differently to avoid clashing with core/config.py)
-└── shared/
+└── common/
     ├── storage.py        # Supabase Storage (service role key)
     ├── scheduler.py      # APScheduler: SCHEDULED -> ONGOING -> COMPLETED
     ├── rate_limit.py     # slowapi: auth_limiter, creation_limiter
@@ -170,7 +170,7 @@ reference/express-backend # clone of the old Express backend, READ-ONLY, in .git
   (use the "Controlled contract changes" process from section 2).
 - Do not port the N8N webhook as it exists in the Express `route-calls.controller.ts`. The
   Telegram notification DOES exist (D9, task T-49, P2), but it is implemented differently:
-  `shared/notifications.py` calling the Telegram Bot API directly with httpx
+  `common/notifications.py` calling the Telegram Bot API directly with httpx
   (`sendPhoto` with `photo=<public cover image URL>` + `caption` when there is an image;
   `sendMessage` otherwise), invoked with BackgroundTasks from the service — never from a router.
   Requirements: clean the Tiptap HTML out of the caption (convert `<strong>`→`<b>`, `<em>`→`<i>`,
