@@ -64,7 +64,7 @@ clear improvement that would require changing the contract or touching the front
 Real example already applied through this process: D5 (review DELETE widened from
 "author only" to "author or ADMIN").
 
-## 3. Stack and confirmed decisions (D1–D10)
+## 3. Stack and confirmed decisions (D1–D11)
 
 | Piece | Tool |
 |---|---|
@@ -103,6 +103,11 @@ Recorded decisions (summary; full detail lives in Notion):
   (see D7); plain `def` endpoints, no async. Everything else in the skill applies
   (Annotated dependencies, router-level prefix/tags/dependencies, response models,
   uv/Ruff tooling).
+- **D11**: error envelope is `{ "success": false, "message": str }` (+ `"errors": { field: [msgs] }`
+  on 400 validation errors). Deliberate improvement over Express, which used the field `error`:
+  the frontend's `ApiErrorResponse` reads `message`, so with Express the real error texts never
+  reached the UI (generic fallback). Zero frontend changes needed. Detail in `docs/api-contract.md`
+  ("Error envelope").
 
 ## 4. Architecture: domain-based structure
 
