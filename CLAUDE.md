@@ -64,7 +64,7 @@ clear improvement that would require changing the contract or touching the front
 Real example already applied through this process: D5 (review DELETE widened from
 "author only" to "author or ADMIN").
 
-## 3. Stack and confirmed decisions (D1–D9)
+## 3. Stack and confirmed decisions (D1–D10)
 
 | Piece | Tool |
 |---|---|
@@ -97,6 +97,12 @@ Recorded decisions (summary; full detail lives in Notion):
   `common/notifications.py`, fired with BackgroundTasks from the route-calls service.
   P2 and disabled by default: without `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` in the .env,
   it does nothing.
+- **D10**: the official FastAPI skill (`.claude/skills/fastapi/`, copied from the
+  `fastapi/fastapi` repo) is active in this repo. Where the skill conflicts with our
+  decisions, THIS FILE WINS. In particular: SQLAlchemy 2.0 (sync) + Alembic, NOT SQLModel
+  (see D7); plain `def` endpoints, no async. Everything else in the skill applies
+  (Annotated dependencies, router-level prefix/tags/dependencies, response models,
+  uv/Ruff tooling).
 
 ## 4. Architecture: domain-based structure
 
@@ -179,6 +185,8 @@ reference/express-backend # clone of the old Express backend, READ-ONLY, in .git
   failure must NEVER break route-call creation. Add `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID`
   as optional settings in `core/config.py` and `.env.example`.
 - Do not use async/await with SQLAlchemy or asyncpg (D7).
+- Do not use SQLModel, even though the FastAPI skill suggests it (D10): models are plain
+  SQLAlchemy 2.0, schemas are plain Pydantic v2.
 - Do not use the Supabase anon key on the server; only the service role key from the .env (D6).
 - Do not touch the `docs/` or `reference/` folders (they are the spec and read-only reference).
 - Do not add heavy dependencies without justifying them.
