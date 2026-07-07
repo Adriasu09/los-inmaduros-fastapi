@@ -4,14 +4,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     """Application settings loaded from environment variables / .env file."""
 
-    # --- Core ---
     ENVIRONMENT: str = "development"
-    DATABASE_URL: str  # no default = required -> fail-fast if missing
+    DATABASE_URL: str
 
-    # --- CORS ---
     CORS_ORIGINS: str = "http://localhost:3000"
 
-    # --- External services (optional: features that need them check first) ---
     CLERK_SECRET_KEY: str | None = None
     SUPABASE_URL: str | None = None
     SUPABASE_SERVICE_ROLE_KEY: str | None = None
@@ -21,6 +18,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
+        extra="ignore",
     )
 
     @property
