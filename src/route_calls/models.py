@@ -12,6 +12,7 @@ from src.core.database import Base, utcnow
 if TYPE_CHECKING:
     from src.auth.models import User
     from src.routes.models import Route
+    from src.attendances.models import Attendance
 
 
 class RoutePace(enum.Enum):
@@ -78,6 +79,9 @@ class RouteCall(Base):
         back_populates="route_call",
         cascade="all, delete-orphan",
         passive_deletes=True,
+    )
+    attendances: Mapped[list["Attendance"]] = relationship(
+        "Attendance", back_populates="route_call"
     )
 
 

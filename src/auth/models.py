@@ -9,6 +9,9 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from src.core.database import Base, utcnow
 
 if TYPE_CHECKING:
+    from src.attendances.models import Attendance
+    from src.favorites.models import Favorite
+    from src.reviews.models import Review
     from src.route_calls.models import RouteCall
 
 
@@ -41,5 +44,12 @@ class User(Base):
     )
 
     organized_route_calls: Mapped[list["RouteCall"]] = relationship(
-    "RouteCall", back_populates="organizer"
+        "RouteCall", back_populates="organizer"
+    )
+    attendances: Mapped[list["Attendance"]] = relationship(
+        "Attendance", back_populates="user"
+    )
+    reviews: Mapped[list["Review"]] = relationship("Review", back_populates="user")
+    favorites: Mapped[list["Favorite"]] = relationship(
+        "Favorite", back_populates="user"
     )
