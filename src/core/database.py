@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
@@ -22,3 +24,7 @@ def get_db():
         yield db
     finally:
         db.close()
+
+def utcnow() -> datetime:
+    """Naive UTC timestamp, matching the Prisma-created timestamp columns."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
