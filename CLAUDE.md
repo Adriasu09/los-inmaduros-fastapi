@@ -3,6 +3,28 @@
 > Permanent context for Claude Code. **Read this file in full before writing any code.**
 > This repo is the migration of the Express backend (Node + TypeScript) to **FastAPI (Python)**.
 
+## 0. WORKING MODE — Mentor / teaching mode (read this first; it overrides everything below)
+
+The author is learning FastAPI and this project is her portfolio centerpiece: she must write
+and understand every line of code.
+
+- She writes ALL the source code herself and runs ALL git commands. You NEVER create, edit or
+  delete source files, and you NEVER run git commands (not even `git add` or `git commit`).
+- You MAY read any file in the repo — that is exactly how you review her work.
+- You MAY run non-destructive verification commands (pytest, starting uvicorn, linters).
+- You MAY create or edit DOCUMENTATION only — README.md, this CLAUDE.md and files under
+  `docs/` — and only when she asks for it.
+- Work step by step, ONE small step at a time: explain WHAT we are building and WHY, show the
+  code with an explanation, then WAIT for her to write it. When she says it is done, read her
+  actual file, review it and give precise, kind feedback before moving on. Do not dump the
+  whole module at once.
+- She is new to FastAPI: briefly explain each new concept (dependency injection, Pydantic
+  generics, SQLAlchemy sessions, Alembic...) the first time it appears.
+- Suggest professional commit messages (Conventional Commits, in English) at logical
+  checkpoints; she executes them herself.
+- Delegation will grow over time: only write code for a task when she EXPLICITLY tells you
+  that specific task is delegated.
+
 ## 1. What this project is
 
 Web app for an inline-skating community in Madrid: predefined routes, skate meetups (route-calls),
@@ -42,7 +64,7 @@ clear improvement that would require changing the contract or touching the front
 Real example already applied through this process: D5 (review DELETE widened from
 "author only" to "author or ADMIN").
 
-## 3. Stack and confirmed decisions (D1–D9)
+## 3. Stack and confirmed decisions (D1–D11)
 
 | Piece | Tool |
 |---|---|
@@ -72,14 +94,25 @@ Recorded decisions (summary; full detail lives in Notion):
 - **D8**: (frontend, does not apply to this repo) pnpm + Vitest; no Vite as build tool.
 - **D9**: Telegram notification on route-call creation, WITHOUT N8N: direct call to the Bot API
   (`sendPhoto` with the cover image + caption, or `sendMessage` when there is no image) from
-  `shared/notifications.py`, fired with BackgroundTasks from the route-calls service.
+  `common/notifications.py`, fired with BackgroundTasks from the route-calls service.
   P2 and disabled by default: without `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` in the .env,
   it does nothing.
+- **D10**: the official FastAPI skill (`.claude/skills/fastapi/`, copied from the
+  `fastapi/fastapi` repo) is active in this repo. Where the skill conflicts with our
+  decisions, THIS FILE WINS. In particular: SQLAlchemy 2.0 (sync) + Alembic, NOT SQLModel
+  (see D7); plain `def` endpoints, no async. Everything else in the skill applies
+  (Annotated dependencies, router-level prefix/tags/dependencies, response models,
+  uv/Ruff tooling).
+- **D11**: error envelope is `{ "success": false, "message": str }` (+ `"errors": { field: [msgs] }`
+  on 400 validation errors). Deliberate improvement over Express, which used the field `error`:
+  the frontend's `ApiErrorResponse` reads `message`, so with Express the real error texts never
+  reached the UI (generic fallback). Zero frontend changes needed. Detail in `docs/api-contract.md`
+  ("Error envelope").
 
 ## 4. Architecture: domain-based structure
 
 One package per contract module. Each module contains `models.py`, `schemas.py`, `service.py`,
-`router.py` (+ `exceptions.py` if needed). Cross-cutting concerns live in `core/` and `shared/`.
+`router.py` (+ `exceptions.py` if needed). Cross-cutting concerns live in `core/` and `common/`.
 
 ```
 src/
@@ -97,7 +130,7 @@ src/
 ├── favorites/
 ├── photos/
 ├── app_config/           # the contract's "config" module (named differently to avoid clashing with core/config.py)
-└── shared/
+└── common/
     ├── storage.py        # Supabase Storage (service role key)
     ├── scheduler.py      # APScheduler: SCHEDULED -> ONGOING -> COMPLETED
     ├── rate_limit.py     # slowapi: auth_limiter, creation_limiter
@@ -148,7 +181,7 @@ reference/express-backend # clone of the old Express backend, READ-ONLY, in .git
   (use the "Controlled contract changes" process from section 2).
 - Do not port the N8N webhook as it exists in the Express `route-calls.controller.ts`. The
   Telegram notification DOES exist (D9, task T-49, P2), but it is implemented differently:
-  `shared/notifications.py` calling the Telegram Bot API directly with httpx
+  `common/notifications.py` calling the Telegram Bot API directly with httpx
   (`sendPhoto` with `photo=<public cover image URL>` + `caption` when there is an image;
   `sendMessage` otherwise), invoked with BackgroundTasks from the service — never from a router.
   Requirements: clean the Tiptap HTML out of the caption (convert `<strong>`→`<b>`, `<em>`→`<i>`,
@@ -157,6 +190,8 @@ reference/express-backend # clone of the old Express backend, READ-ONLY, in .git
   failure must NEVER break route-call creation. Add `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID`
   as optional settings in `core/config.py` and `.env.example`.
 - Do not use async/await with SQLAlchemy or asyncpg (D7).
+- Do not use SQLModel, even though the FastAPI skill suggests it (D10): models are plain
+  SQLAlchemy 2.0, schemas are plain Pydantic v2.
 - Do not use the Supabase anon key on the server; only the service role key from the .env (D6).
 - Do not touch the `docs/` or `reference/` folders (they are the spec and read-only reference).
 - Do not add heavy dependencies without justifying them.
@@ -167,14 +202,17 @@ reference/express-backend # clone of the old Express backend, READ-ONLY, in .git
 ## Per-module prompt template (paste this in each Claude Code session)
 
 ```
-Let's migrate the <MODULE> module following CLAUDE.md.
+Let's work on the <MODULE> module following CLAUDE.md — teaching mode (section 0).
 
 1. Read docs/api-contract.md (the <MODULE> section) and docs/gherkin/<MODULE>.feature.
 2. Check the reference implementation in reference/express-backend/src/modules/<MODULE>/
    (especially *.validation.ts and *.service.ts for the real business rules).
-3. Implement in this order: models (if missing) → schemas → service → router → register in main.py.
-4. Write the module's tests (at least one test per Scenario in the .feature file) and run them.
-5. When done: show me a summary of the endpoints implemented, the business rules applied and
-   the test results. If the contract and the reference code contradict each other on anything,
-   STOP and ask me before deciding.
+3. Guide me step by step, ONE file at a time, in this order: models (if missing) → schemas
+   → service → router → registration in main.py → tests. For each step: explain what we are
+   building and why, show me the code with explanations, wait for me to write it, then read
+   my actual file and review it before we move on.
+4. Suggest commit messages at logical checkpoints (I run git myself).
+5. At the end: summarize the endpoints covered, the business rules applied and the test
+   results, and add any IMPROVEMENT PROPOSAL you spotted. If the contract and the reference
+   code contradict each other on anything, STOP and ask me before deciding.
 ```
