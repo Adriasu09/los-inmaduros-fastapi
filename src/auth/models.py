@@ -1,11 +1,15 @@
 import enum
 from datetime import datetime
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from sqlalchemy import Enum, text
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.core.database import Base, utcnow
+
+if TYPE_CHECKING:
+    from src.route_calls.models import RouteCall
 
 
 class UserRole(enum.Enum):
@@ -34,4 +38,8 @@ class User(Base):
     )
     updated_at: Mapped[datetime] = mapped_column(
         "updatedAt", default=utcnow, onupdate=utcnow
+    )
+
+    organized_route_calls: Mapped[list["RouteCall"]] = relationship(
+    "RouteCall", back_populates="organizer"
     )
