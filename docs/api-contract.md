@@ -9,6 +9,11 @@
 
 - **Base URL:** everything hangs under `/api` (the frontend uses `NEXT_PUBLIC_API_URL`, e.g. `http://localhost:4000/api`).
 - **Envelope:** every response has the shape `{ "success": bool, "data": ..., "message"?: str, "count"?: int, "pagination"?: {...} }`. The frontend depends on it (`ApiResponse<T>`). **Do not change.**
+- **Error envelope** (approved 2026-07-07, deliberate improvement over Express): error responses are
+  `{ "success": false, "message": str }`, plus `"errors": { "<field>": ["<msg>", ...] }` on validation
+  errors (400). Express used the field `error`, but the frontend's `ApiErrorResponse` reads `message`
+  — so with Express the real error texts never reached the UI (it always fell back to a generic
+  "An error occurred"). Emitting `message` fixes that latent bug with ZERO frontend changes.
 - **Auth:** Clerk. JWT in `Authorization: Bearer <token>`. In FastAPI: `get_current_user` dependency.
 - **Protection levels:** *Public* (no token) · *Auth* (logged in) · *Auth + ADMIN* (admin role) ·
   *(in service)* = the fine-grained permission (organizer / owner / organizer-or-admin) is checked

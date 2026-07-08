@@ -64,7 +64,7 @@ clear improvement that would require changing the contract or touching the front
 Real example already applied through this process: D5 (review DELETE widened from
 "author only" to "author or ADMIN").
 
-## 3. Stack and confirmed decisions (D1–D9)
+## 3. Stack and confirmed decisions (D1–D11)
 
 | Piece | Tool |
 |---|---|
@@ -94,14 +94,25 @@ Recorded decisions (summary; full detail lives in Notion):
 - **D8**: (frontend, does not apply to this repo) pnpm + Vitest; no Vite as build tool.
 - **D9**: Telegram notification on route-call creation, WITHOUT N8N: direct call to the Bot API
   (`sendPhoto` with the cover image + caption, or `sendMessage` when there is no image) from
-  `shared/notifications.py`, fired with BackgroundTasks from the route-calls service.
+  `common/notifications.py`, fired with BackgroundTasks from the route-calls service.
   P2 and disabled by default: without `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` in the .env,
   it does nothing.
+- **D10**: the official FastAPI skill (`.claude/skills/fastapi/`, copied from the
+  `fastapi/fastapi` repo) is active in this repo. Where the skill conflicts with our
+  decisions, THIS FILE WINS. In particular: SQLAlchemy 2.0 (sync) + Alembic, NOT SQLModel
+  (see D7); plain `def` endpoints, no async. Everything else in the skill applies
+  (Annotated dependencies, router-level prefix/tags/dependencies, response models,
+  uv/Ruff tooling).
+- **D11**: error envelope is `{ "success": false, "message": str }` (+ `"errors": { field: [msgs] }`
+  on 400 validation errors). Deliberate improvement over Express, which used the field `error`:
+  the frontend's `ApiErrorResponse` reads `message`, so with Express the real error texts never
+  reached the UI (generic fallback). Zero frontend changes needed. Detail in `docs/api-contract.md`
+  ("Error envelope").
 
 ## 4. Architecture: domain-based structure
 
 One package per contract module. Each module contains `models.py`, `schemas.py`, `service.py`,
-`router.py` (+ `exceptions.py` if needed). Cross-cutting concerns live in `core/` and `shared/`.
+`router.py` (+ `exceptions.py` if needed). Cross-cutting concerns live in `core/` and `common/`.
 
 ```
 src/
@@ -119,7 +130,7 @@ src/
 ├── favorites/
 ├── photos/
 ├── app_config/           # the contract's "config" module (named differently to avoid clashing with core/config.py)
-└── shared/
+└── common/
     ├── storage.py        # Supabase Storage (service role key)
     ├── scheduler.py      # APScheduler: SCHEDULED -> ONGOING -> COMPLETED
     ├── rate_limit.py     # slowapi: auth_limiter, creation_limiter
@@ -170,7 +181,7 @@ reference/express-backend # clone of the old Express backend, READ-ONLY, in .git
   (use the "Controlled contract changes" process from section 2).
 - Do not port the N8N webhook as it exists in the Express `route-calls.controller.ts`. The
   Telegram notification DOES exist (D9, task T-49, P2), but it is implemented differently:
-  `shared/notifications.py` calling the Telegram Bot API directly with httpx
+  `common/notifications.py` calling the Telegram Bot API directly with httpx
   (`sendPhoto` with `photo=<public cover image URL>` + `caption` when there is an image;
   `sendMessage` otherwise), invoked with BackgroundTasks from the service — never from a router.
   Requirements: clean the Tiptap HTML out of the caption (convert `<strong>`→`<b>`, `<em>`→`<i>`,
@@ -179,6 +190,8 @@ reference/express-backend # clone of the old Express backend, READ-ONLY, in .git
   failure must NEVER break route-call creation. Add `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID`
   as optional settings in `core/config.py` and `.env.example`.
 - Do not use async/await with SQLAlchemy or asyncpg (D7).
+- Do not use SQLModel, even though the FastAPI skill suggests it (D10): models are plain
+  SQLAlchemy 2.0, schemas are plain Pydantic v2.
 - Do not use the Supabase anon key on the server; only the service role key from the .env (D6).
 - Do not touch the `docs/` or `reference/` folders (they are the spec and read-only reference).
 - Do not add heavy dependencies without justifying them.
