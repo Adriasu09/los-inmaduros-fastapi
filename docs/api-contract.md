@@ -3,13 +3,13 @@
 > **Single source of truth** for the Express → FastAPI migration. The FastAPI backend must honor
 > this contract (routes and shapes) so the frontend keeps working without changes.
 > Obtained by reverse-engineering the Express V2 backend and verified against the frontend.
-> Version: Phase 4 closed · decisions D1–D9 · code freeze on July 25.
+> Version: Phase 4 closed · decisions D1–D13 · code freeze on July 25.
 
 ## Contract conventions
 
 - **Base URL:** everything hangs under `/api` (the frontend uses `NEXT_PUBLIC_API_URL`, e.g. `http://localhost:4000/api`).
 - **Envelope:** every response has the shape `{ "success": bool, "data": ..., "message"?: str, "count"?: int, "pagination"?: {...} }`. The frontend depends on it (`ApiResponse<T>`). **Do not change.**
-- **Error envelope** (approved 2026-07-07, deliberate improvement over Express): error responses are
+- **Error envelope** (D13, approved 2026-07-08, deliberate improvement over Express): error responses are
   `{ "success": false, "message": str }`, plus `"errors": { "<field>": ["<msg>", ...] }` on validation
   errors (400). Express used the field `error`, but the frontend's `ApiErrorResponse` reads `message`
   — so with Express the real error texts never reached the UI (it always fell back to a generic
