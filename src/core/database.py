@@ -1,4 +1,6 @@
-from sqlalchemy import create_engine
+from datetime import datetime, timezone
+
+from sqlalchemy import Text, create_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 from src.core.config import settings
@@ -13,6 +15,7 @@ SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
 
 class Base(DeclarativeBase):
     """Base class for all SQLAlchemy ORM models."""
+    type_annotation_map = {str: Text}
 
 
 def get_db():
@@ -22,3 +25,7 @@ def get_db():
         yield db
     finally:
         db.close()
+
+def utcnow() -> datetime:
+    """Naive UTC timestamp, matching the Prisma-created timestamp columns."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)

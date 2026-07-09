@@ -64,7 +64,7 @@ clear improvement that would require changing the contract or touching the front
 Real example already applied through this process: D5 (review DELETE widened from
 "author only" to "author or ADMIN").
 
-## 3. Stack and confirmed decisions (D1–D11)
+## 3. Stack and confirmed decisions (D1–D13)
 
 | Piece | Tool |
 |---|---|
@@ -97,13 +97,15 @@ Recorded decisions (summary; full detail lives in Notion):
   `common/notifications.py`, fired with BackgroundTasks from the route-calls service.
   P2 and disabled by default: without `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` in the .env,
   it does nothing.
-- **D10**: the official FastAPI skill (`.claude/skills/fastapi/`, copied from the
+- **D10 / D11**: frontend accessibility approach and the Claude Code mentor working mode —
+  recorded in Notion (frontend/workflow scope). The working mode is section 0 of this file.
+- **D12**: the official FastAPI skill (`.claude/skills/fastapi/`, copied from the
   `fastapi/fastapi` repo) is active in this repo. Where the skill conflicts with our
   decisions, THIS FILE WINS. In particular: SQLAlchemy 2.0 (sync) + Alembic, NOT SQLModel
   (see D7); plain `def` endpoints, no async. Everything else in the skill applies
   (Annotated dependencies, router-level prefix/tags/dependencies, response models,
   uv/Ruff tooling).
-- **D11**: error envelope is `{ "success": false, "message": str }` (+ `"errors": { field: [msgs] }`
+- **D13**: error envelope is `{ "success": false, "message": str }` (+ `"errors": { field: [msgs] }`
   on 400 validation errors). Deliberate improvement over Express, which used the field `error`:
   the frontend's `ApiErrorResponse` reads `message`, so with Express the real error texts never
   reached the UI (generic fallback). Zero frontend changes needed. Detail in `docs/api-contract.md`
@@ -190,7 +192,7 @@ reference/express-backend # clone of the old Express backend, READ-ONLY, in .git
   failure must NEVER break route-call creation. Add `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID`
   as optional settings in `core/config.py` and `.env.example`.
 - Do not use async/await with SQLAlchemy or asyncpg (D7).
-- Do not use SQLModel, even though the FastAPI skill suggests it (D10): models are plain
+- Do not use SQLModel, even though the FastAPI skill suggests it (D12): models are plain
   SQLAlchemy 2.0, schemas are plain Pydantic v2.
 - Do not use the Supabase anon key on the server; only the service role key from the .env (D6).
 - Do not touch the `docs/` or `reference/` folders (they are the spec and read-only reference).
