@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from src.auth.models import User
     from src.routes.models import Route
     from src.attendances.models import Attendance
+    from src.photos.models import Photo
 
 
 class RoutePace(enum.Enum):
@@ -83,6 +84,7 @@ class RouteCall(Base):
     attendances: Mapped[list["Attendance"]] = relationship(
         "Attendance", back_populates="route_call"
     )
+    photos: Mapped[list["Photo"]] = relationship("Photo", back_populates="route_call")
 
 
 class MeetingPoint(Base):

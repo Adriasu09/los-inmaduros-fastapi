@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from src.favorites.models import Favorite
     from src.reviews.models import Review
     from src.route_calls.models import RouteCall
+    from src.photos.models import Photo
 
 
 class RouteLevel(enum.Enum):
@@ -52,3 +53,4 @@ class Route(Base):
     favorites: Mapped[list["Favorite"]] = relationship(
         "Favorite", back_populates="route"
     )
+    photos: Mapped[list["Photo"]] = relationship("Photo", back_populates="route")

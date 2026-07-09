@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from src.favorites.models import Favorite
     from src.reviews.models import Review
     from src.route_calls.models import RouteCall
+    from src.photos.models import Photo
 
 
 class UserRole(enum.Enum):
@@ -52,4 +53,10 @@ class User(Base):
     reviews: Mapped[list["Review"]] = relationship("Review", back_populates="user")
     favorites: Mapped[list["Favorite"]] = relationship(
         "Favorite", back_populates="user"
+    )
+    uploaded_photos: Mapped[list["Photo"]] = relationship(
+        "Photo", back_populates="user", foreign_keys="Photo.user_id"
+    )
+    moderated_photos: Mapped[list["Photo"]] = relationship(
+        "Photo", back_populates="moderator", foreign_keys="Photo.moderated_by"
     )
