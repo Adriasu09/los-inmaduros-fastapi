@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
-from sqlalchemy import Enum, text
+from sqlalchemy import Enum, Index, text
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -27,10 +27,14 @@ class Route(Base):
     """Mirror of the existing `routes` table (the 17 production routes)."""
 
     __tablename__ = "routes"
+    __table_args__ = (
+        # Prisma created uniques as named UNIQUE INDEXes: mirror them exactly
+        Index("routes_slug_key", "slug", unique=True),
+    )
 
     id: Mapped[str] = mapped_column(primary_key=True, default=lambda: str(uuid4()))
     name: Mapped[str]
-    slug: Mapped[str] = mapped_column(unique=True)
+    slug: Mapped[str]
     image: Mapped[str]
     approximate_distance: Mapped[str] = mapped_column("approximateDistance")
     description: Mapped[str]

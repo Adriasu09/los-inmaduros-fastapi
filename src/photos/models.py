@@ -39,13 +39,14 @@ class Photo(Base):
         server_default=text("'ROUTE_GALLERY'::\"PhotoContext\""),
     )
     route_id: Mapped[str | None] = mapped_column(
-        "routeId", ForeignKey("routes.id", ondelete="SET NULL")
+        "routeId", ForeignKey("routes.id", ondelete="SET NULL", onupdate="CASCADE")
     )
     route_call_id: Mapped[str | None] = mapped_column(
-        "routeCallId", ForeignKey("route_calls.id", ondelete="SET NULL")
+        "routeCallId",
+        ForeignKey("route_calls.id", ondelete="SET NULL", onupdate="CASCADE"),
     )
     user_id: Mapped[str] = mapped_column(
-        "userId", ForeignKey("users.id", ondelete="CASCADE")
+        "userId", ForeignKey("users.id", ondelete="CASCADE", onupdate="CASCADE")
     )
     image_url: Mapped[str] = mapped_column("imageUrl")
     caption: Mapped[str | None]
@@ -56,7 +57,7 @@ class Photo(Base):
     )
     moderated_at: Mapped[datetime | None] = mapped_column("moderatedAt")
     moderated_by: Mapped[str | None] = mapped_column(
-        "moderatedBy", ForeignKey("users.id", ondelete="SET NULL")
+        "moderatedBy", ForeignKey("users.id", ondelete="SET NULL", onupdate="CASCADE")
     )
     moderation_notes: Mapped[str | None] = mapped_column("moderationNotes")
     created_at: Mapped[datetime] = mapped_column(

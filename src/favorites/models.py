@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
-from sqlalchemy import ForeignKey, UniqueConstraint, text
+from sqlalchemy import ForeignKey, Index, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.core.database import Base
@@ -17,15 +17,16 @@ class Favorite(Base):
 
     __tablename__ = "favorites"
     __table_args__ = (
-        UniqueConstraint("routeId", "userId", name="favorites_routeId_userId_key"),
+        # Prisma created this unique as a named UNIQUE INDEX: mirror it exactly
+        Index("favorites_routeId_userId_key", "routeId", "userId", unique=True),
     )
 
     id: Mapped[str] = mapped_column(primary_key=True, default=lambda: str(uuid4()))
     route_id: Mapped[str] = mapped_column(
-        "routeId", ForeignKey("routes.id", ondelete="CASCADE")
+        "routeId", ForeignKey("routes.id", ondelete="CASCADE", onupdate="CASCADE")
     )
     user_id: Mapped[str] = mapped_column(
-        "userId", ForeignKey("users.id", ondelete="CASCADE")
+        "userId", ForeignKey("users.id", ondelete="CASCADE", onupdate="CASCADE")
     )
     created_at: Mapped[datetime] = mapped_column(
         "createdAt", server_default=text("CURRENT_TIMESTAMP")

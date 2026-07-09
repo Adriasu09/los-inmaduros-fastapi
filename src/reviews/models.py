@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
-from sqlalchemy import ForeignKey, UniqueConstraint, text
+from sqlalchemy import ForeignKey, Index, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.core.database import Base, utcnow
@@ -17,17 +17,16 @@ class Review(Base):
 
     __tablename__ = "reviews"
     __table_args__ = (
-        UniqueConstraint(
-            "userId", "routeId", name="reviews_userId_routeId_key"
-        ),
+        # Prisma created this unique as a named UNIQUE INDEX: mirror it exactly
+        Index("reviews_userId_routeId_key", "userId", "routeId", unique=True),
     )
 
     id: Mapped[str] = mapped_column(primary_key=True, default=lambda: str(uuid4()))
     route_id: Mapped[str] = mapped_column(
-        "routeId", ForeignKey("routes.id", ondelete="CASCADE")
+        "routeId", ForeignKey("routes.id", ondelete="CASCADE", onupdate="CASCADE")
     )
     user_id: Mapped[str] = mapped_column(
-        "userId", ForeignKey("users.id", ondelete="CASCADE")
+        "userId", ForeignKey("users.id", ondelete="CASCADE", onupdate="CASCADE")
     )
     rating: Mapped[int]
     comment: Mapped[str | None]

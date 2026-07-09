@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
-from sqlalchemy import Enum, text
+from sqlalchemy import Enum, Index, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.core.database import Base, utcnow
@@ -25,10 +25,15 @@ class User(Base):
     """Mirror of the existing `users` table (created by Prisma)."""
 
     __tablename__ = "users"
+    __table_args__ = (
+        # Prisma created uniques as named UNIQUE INDEXes: mirror them exactly
+        Index("users_clerkId_key", "clerkId", unique=True),
+        Index("users_email_key", "email", unique=True),
+    )
 
     id: Mapped[str] = mapped_column(primary_key=True, default=lambda: str(uuid4()))
-    clerk_id: Mapped[str] = mapped_column("clerkId", unique=True)
-    email: Mapped[str] = mapped_column(unique=True)
+    clerk_id: Mapped[str] = mapped_column("clerkId")
+    email: Mapped[str]
     name: Mapped[str | None]
     last_name: Mapped[str | None] = mapped_column("lastName")
     image_url: Mapped[str | None] = mapped_column("imageUrl")

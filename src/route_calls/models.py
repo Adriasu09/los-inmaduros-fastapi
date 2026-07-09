@@ -45,10 +45,10 @@ class RouteCall(Base):
 
     id: Mapped[str] = mapped_column(primary_key=True, default=lambda: str(uuid4()))
     route_id: Mapped[str | None] = mapped_column(
-        "routeId", ForeignKey("routes.id", ondelete="SET NULL")
+        "routeId", ForeignKey("routes.id", ondelete="SET NULL", onupdate="CASCADE")
     )
     organizer_id: Mapped[str] = mapped_column(
-        "organizerId", ForeignKey("users.id", ondelete="CASCADE")
+        "organizerId", ForeignKey("users.id", ondelete="CASCADE", onupdate="CASCADE")
     )
     title: Mapped[str]
     description: Mapped[str | None]
@@ -94,7 +94,8 @@ class MeetingPoint(Base):
 
     id: Mapped[str] = mapped_column(primary_key=True, default=lambda: str(uuid4()))
     route_call_id: Mapped[str] = mapped_column(
-        "routeCallId", ForeignKey("route_calls.id", ondelete="CASCADE")
+        "routeCallId",
+        ForeignKey("route_calls.id", ondelete="CASCADE", onupdate="CASCADE"),
     )
     type: Mapped[MeetingPointType] = mapped_column(
         Enum(MeetingPointType, name="MeetingPointType", create_type=False),
