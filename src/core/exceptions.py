@@ -79,7 +79,7 @@ def unhandled_exception_handler(request: Request, exc: Exception) -> JSONRespons
 
     The client never sees internal details; the full traceback goes to the log.
     """
-    logger.exception("Unhandled error on %s %s", request.method, request.url.path)
+    logger.error("Unhandled error on %s %s", request.method, request.url.path, exc_info=exc)
     return JSONResponse(
         status_code=500,
         content={"success": False, "message": "Internal server error"},
