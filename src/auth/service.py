@@ -1,10 +1,15 @@
-from clerk_backend_api import Clerk
+from clerk_backend_api import Clerk, CreateSessionRequestBody, GetUserListRequest
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from src.auth.models import User
+from src.auth.schemas import TestTokenData
 from src.core.config import settings
+from src.core.exceptions import NotFoundError
+
+
+TESTING_TEMPLATE = "testing-template"
 
 # Single SDK instance for the whole app (same pattern as the engine in core/database.py):
 # module-level code runs once, on first import.
@@ -42,3 +47,33 @@ def get_or_create_user(db: Session, clerk_id: str) -> User:
     else:
         db.refresh(user)
     return user
+
+
+def generate_test_token(email: str) -> TestTokenData:
+    """DEV ONLY (D1): mint a Clerk session token for a user, for Postman/tests."""
+    if settings.ENVIRONMENT == "production":
+        # 404, not 403: don't reveal that the endpoint exists at all
+        raise NotFoundError("Endpoint not available in production")
+
+    users = clerk.users.list(request=GetUserListRequest(email_address=[email]))
+    if not users:
+        raise NotFoundError("User not found. Create user in Clerk dashboard first.")
+    clerk_user = users[0]
+
+    session = clerk.sessions.create(
+        request=CreateSessionRequestBody(user_id=clerk_user.id)
+    )
+    token_response = clerk.sessions.create_token_from_template(
+        session_id=session.id, template_name=TESTING_TEMPLATE
+    )
+    if token_response.jwt is None:
+        raise RuntimeError("Clerk did not return a token")  # bug/outage -> catch-all 500
+
+    return TestTokenData(
+        userId=clerk_user.id,
+        email=clerk_user.email_addresses[0].email_address if clerk_user.email_addresses else email,
+        sessionId=session.id,
+        token=token_response.jwt,
+        warning="This endpoint should be removed in production",
+        instructions="Copy this token and use it in Postman: Authorization: Bearer <token>",
+    )

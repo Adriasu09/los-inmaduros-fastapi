@@ -9,6 +9,7 @@ from src.core.config import settings
 from src.core.database import get_db
 from src.core.exceptions import register_exception_handlers
 from src.core.schemas import ApiResponse
+from src.auth.router import router as auth_router
 
 
 def create_app() -> FastAPI:
@@ -31,9 +32,7 @@ def create_app() -> FastAPI:
     register_exception_handlers(app)
 
     # Module routers will be registered here, one per session:
-    # app.include_router(routes_router)
-    # app.include_router(route_calls_router)
-    # ...
+    app.include_router(auth_router)
 
     @app.get(
         "/health",
