@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from src.auth.models import User, UserRole
 from src.auth.service import clerk, get_or_create_user
 from src.core.database import get_db
-from src.core.exceptions import UnauthorizedError, ForbiddenError
+from src.core.exceptions import ForbiddenError, UnauthorizedError
 
 # auto_error=False: if the header is missing we decide the error (401 + envelope),
 # instead of FastAPI's default 403 with {"detail": ...}
@@ -30,6 +30,7 @@ def get_current_user(
 
     return get_or_create_user(db, state.payload["sub"])
 
+
 def require_admin(
     user: Annotated[User, Depends(get_current_user)],
 ) -> User:
@@ -37,6 +38,7 @@ def require_admin(
     if user.role != UserRole.ADMIN:
         raise ForbiddenError("Admin access required")
     return user
+
 
 def optional_auth(
     request: Request,
