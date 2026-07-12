@@ -14,6 +14,9 @@ and understand every line of code.
 - You MAY run non-destructive verification commands (pytest, starting uvicorn, linters).
 - You MAY create or edit DOCUMENTATION only — README.md, this CLAUDE.md and files under
   `docs/` — and only when she asks for it.
+- STANDING DELEGATION (agreed in D3): pure STYLE fixes — import ordering/grouping (PEP 8)
+  and blank-line spacing — you fix directly in any file and simply notify what you changed.
+  Anything beyond that (names, logic, structure) is still hers to write.
 - Work step by step, ONE small step at a time: explain WHAT we are building and WHY, show the
   code with an explanation, then WAIT for her to write it. When she says it is done, read her
   actual file, review it and give precise, kind feedback before moving on. Do not dump the
@@ -162,8 +165,11 @@ reference/express-backend # clone of the old Express backend, READ-ONLY, in .git
   over the existing DB. **NEVER drop or recreate tables that hold data.**
 - **Tests written alongside the code** (bootcamp requirement, never cut): each module is done
   when its tests pass. The `.feature` files in `docs/gherkin/` are the specification for each
-  suite; turn every Scenario into at least one test. Authenticate in tests via
-  `POST /api/auth/test-token`.
+  suite; turn every Scenario into at least one test. Tests NEVER call the real Clerk API and
+  NEVER leave residue in the shared database: fake identities via `app.dependency_overrides`,
+  the Clerk SDK mocked with `monkeypatch`, and DB writes inside a transactional fixture that
+  rolls back on teardown. `POST /api/auth/test-token` is for MANUAL verification only
+  (Postman/Swagger against real Clerk).
 - **Git**: GitFlow. One `feature/<module>` branch per module; small commits in English
   (`feat:`, `fix:`, `test:`, `docs:` convention).
 

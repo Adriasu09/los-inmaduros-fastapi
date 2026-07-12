@@ -5,9 +5,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from src.auth.router import router as auth_router, webhook_router
 from src.core.config import settings
 from src.core.database import get_db
 from src.core.exceptions import register_exception_handlers
+import src.core.models_registry  # noqa: F401  (register all models before any is used)
 from src.core.schemas import ApiResponse
 
 
@@ -31,9 +33,8 @@ def create_app() -> FastAPI:
     register_exception_handlers(app)
 
     # Module routers will be registered here, one per session:
-    # app.include_router(routes_router)
-    # app.include_router(route_calls_router)
-    # ...
+    app.include_router(auth_router)
+    app.include_router(webhook_router)
 
     @app.get(
         "/health",
