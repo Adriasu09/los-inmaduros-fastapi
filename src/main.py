@@ -10,6 +10,7 @@ from src.core.database import get_db
 from src.core.exceptions import register_exception_handlers
 from src.core.schemas import ApiResponse
 from src.auth.router import router as auth_router
+import src.core.models_registry  # noqa: F401  (register all models before any is used)
 
 
 def create_app() -> FastAPI:
