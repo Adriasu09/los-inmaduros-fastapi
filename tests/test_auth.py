@@ -1,17 +1,15 @@
+import base64
+import json
+from datetime import datetime, timezone
 from types import SimpleNamespace
 from uuid import uuid4
 
 from clerk_backend_api.security import AuthStatus, RequestState
 from sqlalchemy import select
+from svix.webhooks import Webhook
 
 from src.auth import service as auth_service
 from src.auth.models import User, UserRole
-
-import base64
-import json
-from datetime import datetime, timezone
-
-from svix.webhooks import Webhook
 
 
 # --- Scenario: Access a protected endpoint with a valid token ---

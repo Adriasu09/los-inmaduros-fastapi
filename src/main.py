@@ -9,8 +9,8 @@ from src.auth.router import router as auth_router, webhook_router
 from src.core.config import settings
 from src.core.database import get_db
 from src.core.exceptions import register_exception_handlers
-from src.core.schemas import ApiResponse
 import src.core.models_registry  # noqa: F401  (register all models before any is used)
+from src.core.schemas import ApiResponse
 
 
 def create_app() -> FastAPI:

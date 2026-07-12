@@ -2,13 +2,12 @@ from clerk_backend_api import Clerk, CreateSessionRequestBody, GetUserListReques
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
+from svix.webhooks import Webhook, WebhookVerificationError
 
 from src.auth.models import User
 from src.auth.schemas import TestTokenData
 from src.core.config import settings
 from src.core.exceptions import NotFoundError, UnauthorizedError
-
-from svix.webhooks import Webhook, WebhookVerificationError
 
 
 TESTING_TEMPLATE = "testing-template"
