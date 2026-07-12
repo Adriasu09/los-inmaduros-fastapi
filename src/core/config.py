@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     CORS_ORIGINS: str = "http://localhost:3000"
 
     CLERK_SECRET_KEY: str | None = None
+    CLERK_WEBHOOK_SECRET: str | None = None
     SUPABASE_URL: str | None = None
     SUPABASE_SERVICE_ROLE_KEY: str | None = None
     TELEGRAM_BOT_TOKEN: str | None = None

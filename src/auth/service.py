@@ -6,7 +6,9 @@ from sqlalchemy.orm import Session
 from src.auth.models import User
 from src.auth.schemas import TestTokenData
 from src.core.config import settings
-from src.core.exceptions import NotFoundError
+from src.core.exceptions import NotFoundError, UnauthorizedError
+
+from svix.webhooks import Webhook, WebhookVerificationError
 
 
 TESTING_TEMPLATE = "testing-template"
@@ -77,3 +79,32 @@ def generate_test_token(email: str) -> TestTokenData:
         warning="This endpoint should be removed in production",
         instructions="Copy this token and use it in Postman: Authorization: Bearer <token>",
     )
+
+
+def verify_clerk_webhook(payload: bytes, headers: dict) -> dict:
+    """D14: verify the svix signature and return the parsed Clerk event."""
+    if settings.CLERK_WEBHOOK_SECRET is None:
+        # Feature disabled: indistinguishable from a route that does not exist
+        raise NotFoundError("Not found")
+    webhook = Webhook(settings.CLERK_WEBHOOK_SECRET)
+    try:
+        return webhook.verify(payload, headers)
+    except WebhookVerificationError:
+        raise UnauthorizedError("Invalid webhook signature")
+
+
+def update_user_from_clerk_event(db: Session, data: dict) -> None:
+    """D14: refresh our mirror of a user after a Clerk `user.updated` event."""
+    user = db.scalar(select(User).where(User.clerk_id == data["id"]))
+    if user is None:
+        return  # never logged in here: their first login will snapshot the fresh profile
+
+    emails = data.get("email_addresses") or []
+    primary_id = data.get("primary_email_address_id")
+    primary = next((e["email_address"] for e in emails if e["id"] == primary_id), None)
+    if primary is not None:
+        user.email = primary
+    user.name = data.get("first_name")
+    user.last_name = data.get("last_name")
+    user.image_url = data.get("image_url")
+    db.commit()

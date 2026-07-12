@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from src.auth.deps import get_current_user, require_admin
 from src.auth.models import User, UserRole
-from src.core.database import engine
+from src.core.database import engine, get_db
 from src.main import app
 
 
@@ -64,6 +64,17 @@ def as_admin():
     app.dependency_overrides[get_current_user] = lambda: user
     yield user
     app.dependency_overrides.pop(get_current_user, None)
+
+
+@pytest.fixture()
+def client_db(db_session):
+    """Client whose endpoints use the transactional bubble session (zero residue)."""
+    def override_get_db():
+        yield db_session
+    app.dependency_overrides[get_db] = override_get_db
+    with TestClient(app) as c:
+        yield c
+    app.dependency_overrides.pop(get_db, None)
 
 
 # --- Test-only routes: exercise the real auth dependencies (no real module yet) ---

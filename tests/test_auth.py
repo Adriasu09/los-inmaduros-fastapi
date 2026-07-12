@@ -7,6 +7,12 @@ from sqlalchemy import select
 from src.auth import service as auth_service
 from src.auth.models import User, UserRole
 
+import base64
+import json
+from datetime import datetime, timezone
+
+from svix.webhooks import Webhook
+
 
 # --- Scenario: Access a protected endpoint with a valid token ---
 def test_valid_token_identifies_user(client, as_user):
@@ -187,3 +193,87 @@ def test_user_sync_race_returns_rival_user(db_session, monkeypatch):
 
     # We lost the race but recovered: we got the RIVAL's row, no 500, no duplicate
     assert user.email == "rival@example.com"
+
+
+TEST_WEBHOOK_SECRET = "whsec_" + base64.b64encode(b"test-secret-for-auth-suite-32b!!").decode()
+
+
+def signed_webhook_headers(payload: str, secret: str = TEST_WEBHOOK_SECRET) -> dict:
+    """Sign a payload exactly like Clerk (svix) does."""
+    msg_id = "msg_test_001"
+    timestamp = datetime.now(timezone.utc)
+    signature = Webhook(secret).sign(msg_id, timestamp, payload)
+    return {
+        "svix-id": msg_id,
+        "svix-timestamp": str(int(timestamp.timestamp())),
+        "svix-signature": signature,
+    }
+
+
+# --- D14: Clerk webhook keeps the users mirror fresh ---
+def test_webhook_user_updated_refreshes_user(client_db, db_session, monkeypatch):
+    monkeypatch.setattr(auth_service.settings, "CLERK_WEBHOOK_SECRET", TEST_WEBHOOK_SECRET)
+    clerk_id = f"user_{uuid4().hex[:12]}"
+    db_session.add(User(clerk_id=clerk_id, email="old@example.com", name="Old"))
+    db_session.commit()
+
+    payload = json.dumps({
+        "type": "user.updated",
+        "data": {
+            "id": clerk_id,
+            "first_name": "Fresh",
+            "last_name": "Name",
+            "image_url": "https://img.example.com/new.png",
+            "email_addresses": [
+                {"id": "em_1", "email_address": "fresh@example.com"},
+            ],
+            "primary_email_address_id": "em_1",
+        },
+    })
+    response = client_db.post(
+        "/api/webhooks/clerk", content=payload, headers=signed_webhook_headers(payload)
+    )
+
+    assert response.status_code == 200
+    user = db_session.scalar(select(User).where(User.clerk_id == clerk_id))
+    assert user is not None
+    assert user.name == "Fresh"
+    assert user.email == "fresh@example.com"
+    assert user.image_url == "https://img.example.com/new.png"
+
+
+def test_webhook_invalid_signature_returns_401(client, monkeypatch):
+    monkeypatch.setattr(auth_service.settings, "CLERK_WEBHOOK_SECRET", TEST_WEBHOOK_SECRET)
+    payload = json.dumps({"type": "user.updated", "data": {}})
+    forged = "whsec_" + base64.b64encode(b"attacker-guessed-secret-wrong!!!").decode()
+
+    response = client.post(
+        "/api/webhooks/clerk",
+        content=payload,
+        headers=signed_webhook_headers(payload, secret=forged),
+    )
+
+    assert response.status_code == 401
+    assert response.json()["message"] == "Invalid webhook signature"
+
+
+def test_webhook_unconfigured_returns_404(client, monkeypatch):
+    monkeypatch.setattr(auth_service.settings, "CLERK_WEBHOOK_SECRET", None)
+
+    response = client.post("/api/webhooks/clerk", content="{}")
+
+    assert response.status_code == 404
+
+
+def test_webhook_unknown_user_is_ignored(client_db, db_session, monkeypatch):
+    monkeypatch.setattr(auth_service.settings, "CLERK_WEBHOOK_SECRET", TEST_WEBHOOK_SECRET)
+    clerk_id = f"user_{uuid4().hex[:12]}"
+    payload = json.dumps({"type": "user.updated", "data": {"id": clerk_id, "email_addresses": []}})
+
+    response = client_db.post(
+        "/api/webhooks/clerk", content=payload, headers=signed_webhook_headers(payload)
+    )
+
+    assert response.status_code == 200  # acknowledged...
+    user = db_session.scalar(select(User).where(User.clerk_id == clerk_id))
+    assert user is None  # ...but NOT created: first login owns creation
