@@ -162,8 +162,11 @@ reference/express-backend # clone of the old Express backend, READ-ONLY, in .git
   over the existing DB. **NEVER drop or recreate tables that hold data.**
 - **Tests written alongside the code** (bootcamp requirement, never cut): each module is done
   when its tests pass. The `.feature` files in `docs/gherkin/` are the specification for each
-  suite; turn every Scenario into at least one test. Authenticate in tests via
-  `POST /api/auth/test-token`.
+  suite; turn every Scenario into at least one test. Tests NEVER call the real Clerk API and
+  NEVER leave residue in the shared database: fake identities via `app.dependency_overrides`,
+  the Clerk SDK mocked with `monkeypatch`, and DB writes inside a transactional fixture that
+  rolls back on teardown. `POST /api/auth/test-token` is for MANUAL verification only
+  (Postman/Swagger against real Clerk).
 - **Git**: GitFlow. One `feature/<module>` branch per module; small commits in English
   (`feat:`, `fix:`, `test:`, `docs:` convention).
 
