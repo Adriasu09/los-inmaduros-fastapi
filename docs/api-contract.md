@@ -3,7 +3,7 @@
 > **Single source of truth** for the Express → FastAPI migration. The FastAPI backend must honor
 > this contract (routes and shapes) so the frontend keeps working without changes.
 > Obtained by reverse-engineering the Express V2 backend and verified against the frontend.
-> Version: Phase 4 closed · decisions D1–D13 · code freeze on July 25.
+> Version: Phase 4 closed · decisions D1–D14 · code freeze on July 25.
 
 ## Contract conventions
 
@@ -32,7 +32,17 @@
 
 | Method | Route | What it does | Auth |
 |---|---|---|---|
-| POST | `/api/auth/test-token` | **DEV ONLY** (D1): generates a Clerk JWT from an email (404 in production; 400 without email; 404 if the email does not exist in Clerk) | Public |
+| POST | `/api/auth/test-token` | **DEV ONLY** (D1): generates a Clerk JWT from an email (404 in production; 400 without email or with an invalid email format — EmailStr, deliberate improvement approved in D3 session; 404 if the email does not exist in Clerk) | Public |
+
+## webhooks — `/api/webhooks` (D14, addition over Express)
+
+| Method | Route | What it does | Auth |
+|---|---|---|---|
+| POST | `/api/webhooks/clerk` | Clerk server-to-server notification. On `user.updated`, refreshes the local mirror of the user (email/name/lastName/imageUrl); other event types are acknowledged and ignored. 200 processed/ignored; 401 invalid svix signature; 404 if `CLERK_WEBHOOK_SECRET` is not configured (feature disabled). Never creates users (first login owns creation). | svix signature |
+
+The frontend never calls this route; it exists for Clerk only. Activation requires configuring
+the endpoint URL + `user.updated` subscription in the Clerk dashboard and setting
+`CLERK_WEBHOOK_SECRET` in the deployment environment.
 
 ## routes — `/api/routes`
 
@@ -165,6 +175,10 @@ Statuses: ACTIVE, FLAGGED (reserved, unused), REJECTED, DELETED.
 | D7 | Synchronous backend: `def` routes + sync SQLAlchemy (no asyncpg/AsyncSession) |
 | D8 | Frontend: pnpm yes; Vite as build no (Next ships Turbopack); Vitest + Testing Library (P2) |
 | D9 | Telegram notification without N8N: direct Bot API (`sendPhoto`/`sendMessage`) in `shared/notifications.py` with BackgroundTasks; P2, disabled by default; cleans Tiptap HTML and truncates the caption to 1024 chars |
+| D13 | Error envelope uses `message` (+ `errors` on 400 validation) instead of the Express `error` field — see "Error envelope" above |
+| D14 | Clerk webhook `POST /api/webhooks/clerk` (`user.updated`, svix-verified) keeps the local users mirror fresh; approved in the D3 session (fixes stale name/image after profile edits in Clerk) |
+
+(D10–D12 are workflow/frontend-scope decisions, recorded in Notion.)
 
 ## Target stack
 

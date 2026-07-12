@@ -2,7 +2,9 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
+import logging
 
+logger = logging.getLogger(__name__)
 
 class AppError(Exception):
     """Base class for all domain errors. Subclasses set their status code."""
@@ -72,9 +74,20 @@ def http_exception_handler(request: Request, exc: Exception) -> JSONResponse:
         content={"success": False, "message": str(exc.detail)},
     )
 
+def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Last-resort net: any uncontrolled exception -> generic 500 with envelope.
+
+    The client never sees internal details; the full traceback goes to the log.
+    """
+    logger.error("Unhandled error on %s %s", request.method, request.url.path, exc_info=exc)
+    return JSONResponse(
+        status_code=500,
+        content={"success": False, "message": "Internal server error"},
+    )
 
 def register_exception_handlers(app: FastAPI) -> None:
     """Attach all global handlers to the app (called from main.py)."""
     app.add_exception_handler(AppError, app_error_handler)
     app.add_exception_handler(RequestValidationError, validation_error_handler)
     app.add_exception_handler(StarletteHTTPException, http_exception_handler)
+    app.add_exception_handler(Exception, unhandled_exception_handler)
