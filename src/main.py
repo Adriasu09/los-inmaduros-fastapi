@@ -41,7 +41,7 @@ def create_app() -> FastAPI:
     @app.get(
         "/health",
         response_model=ApiResponse[dict],
-        response_model_exclude_none=True,
+        response_model_exclude_unset=True,
     )
     def health(db: Annotated[Session, Depends(get_db)]):
         """Healthcheck: real DB ping (SELECT 1), wrapped in the envelope."""

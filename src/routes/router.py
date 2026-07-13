@@ -9,13 +9,13 @@ from src.routes.schemas import RouteDetailOut, RouteListItem
 router = APIRouter(prefix="/api/routes", tags=["Routes"])
 
 
-@router.get("", response_model=ApiResponse[list[RouteListItem]], response_model_exclude_none=True)
+@router.get("", response_model=ApiResponse[list[RouteListItem]], response_model_exclude_unset=True)
 def list_routes(db: Session = Depends(get_db)):
     routes = service.list_routes(db)
     return ApiResponse[list[RouteListItem]](success=True, data=routes, count=len(routes))
 
 
-@router.get("/{slug}", response_model=ApiResponse[RouteDetailOut], response_model_exclude_none=True)
+@router.get("/{slug}", response_model=ApiResponse[RouteDetailOut], response_model_exclude_unset=True)
 def get_route_by_slug(
     slug: str,
     db: Session = Depends(get_db),
