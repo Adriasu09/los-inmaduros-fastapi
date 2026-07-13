@@ -158,6 +158,12 @@ reference/express-backend # clone of the old Express backend, READ-ONLY, in .git
   (organizer/owner/admin → raises ForbiddenError). Models know nothing about HTTP.
 - **Errors**: services raise domain exceptions (`core/exceptions.py`); a global handler converts
   them to HTTP with the envelope (`success: false`). Never `raise HTTPException` inside a service.
+- **Responses (convention born in D4)**: endpoints use `response_model_exclude_unset=True` — NEVER
+  `exclude_none`, which would recursively strip the inner `null`s that Express emitted and the
+  frontend types expect (e.g. `gpxFileUrl: null`, `caption: null`). Corollary: response schemas are
+  ALWAYS constructed with every field explicitly set. Contract-facing schemas inherit from
+  `CamelModel` (snake_case fields, camelCase JSON) and datetimes use `UTCDateTime`
+  (`core/schemas.py`), which serializes exactly like JS `Date.toISOString()` (`.000Z`).
 - **Naming**: code, classes, functions and comments in **English**. Endpoints identical to the contract.
 - **Auth**: `get_current_user` validates the Clerk JWT (`authenticate_request`) and performs the
   user-sync (looks up by `clerkId`; creates the user with role USER if missing). `require_admin`
