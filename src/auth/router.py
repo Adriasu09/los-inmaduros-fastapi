@@ -15,7 +15,7 @@ webhook_router = APIRouter(prefix="/api/webhooks", tags=["Webhooks"])
 @router.post(
     "/test-token",
     response_model=ApiResponse[TestTokenData],
-    response_model_exclude_none=True,
+    response_model_exclude_unset=True,
 )
 def generate_test_token(body: TestTokenRequest):
     """DEV ONLY (D1): generate a Clerk JWT for Postman/tests. 404 in production."""
@@ -35,7 +35,7 @@ async def get_raw_body(request: Request) -> bytes:
 @webhook_router.post(
     "/clerk",
     response_model=ApiResponse[dict],
-    response_model_exclude_none=True,
+    response_model_exclude_unset=True,
 )
 def clerk_webhook(
     request: Request,

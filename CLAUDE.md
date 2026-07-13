@@ -67,7 +67,7 @@ clear improvement that would require changing the contract or touching the front
 Real example already applied through this process: D5 (review DELETE widened from
 "author only" to "author or ADMIN").
 
-## 3. Stack and confirmed decisions (D1–D13)
+## 3. Stack and confirmed decisions (D1–D14)
 
 | Piece | Tool |
 |---|---|
@@ -113,6 +113,11 @@ Recorded decisions (summary; full detail lives in Notion):
   the frontend's `ApiErrorResponse` reads `message`, so with Express the real error texts never
   reached the UI (generic fallback). Zero frontend changes needed. Detail in `docs/api-contract.md`
   ("Error envelope").
+- **D14**: Clerk webhook `POST /api/webhooks/clerk` (svix-verified, `user.updated` only) keeps the
+  local users mirror fresh after profile edits in Clerk (stale name/image fix). Addition over
+  Express, approved in the D3 session. Disabled without `CLERK_WEBHOOK_SECRET` (route answers 404).
+  Never creates users — first login owns creation (user-sync). Detail in `docs/api-contract.md`
+  ("webhooks").
 
 ## 4. Architecture: domain-based structure
 
