@@ -71,9 +71,9 @@ def generate_test_token(email: str) -> TestTokenData:
         raise RuntimeError("Clerk did not return a token")  # bug/outage -> catch-all 500
 
     return TestTokenData(
-        userId=clerk_user.id,
+        user_id=clerk_user.id,
         email=clerk_user.email_addresses[0].email_address if clerk_user.email_addresses else email,
-        sessionId=session.id,
+        session_id=session.id,
         token=token_response.jwt,
         warning="This endpoint should be removed in production",
         instructions="Copy this token and use it in Postman: Authorization: Bearer <token>",

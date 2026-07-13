@@ -1,5 +1,7 @@
 from pydantic import BaseModel, EmailStr
 
+from src.core.schemas import CamelModel
+
 
 class TestTokenRequest(BaseModel):
     """Body of POST /api/auth/test-token."""
@@ -7,12 +9,12 @@ class TestTokenRequest(BaseModel):
     email: EmailStr
 
 
-class TestTokenData(BaseModel):
-    """Data block of the test-token response, exactly as Express returns it (camelCase)."""
+class TestTokenData(CamelModel):
+    """Data block of the test-token response, exactly as Express returns it."""
 
-    userId: str
+    user_id: str
     email: str
-    sessionId: str
+    session_id: str
     token: str
     warning: str
     instructions: str
