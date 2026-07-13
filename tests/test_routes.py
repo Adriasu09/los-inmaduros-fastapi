@@ -4,7 +4,7 @@ import re
 from statistics import mean
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import event, select
 
 from src.photos.models import Photo, PhotoStatus
 from src.reviews.models import Review
@@ -140,3 +140,23 @@ def test_dates_are_serialized_with_milliseconds_and_z(client):
 
     assert UTC_Z_FORMAT.match(item["createdAt"]), item["createdAt"]
     assert UTC_Z_FORMAT.match(item["updatedAt"]), item["updatedAt"]
+
+
+# Regression guard: the catalogue must stay a single query (Express did 1 + N)
+def test_catalogue_is_a_single_sql_query(db_session):
+    from src.routes.service import list_routes
+
+    statements = []
+
+    def track(conn, cursor, statement, parameters, context, executemany):
+        statements.append(statement)
+
+    engine = db_session.get_bind().engine
+    event.listen(engine, "before_cursor_execute", track)
+    try:
+        list_routes(db_session)
+    finally:
+        event.remove(engine, "before_cursor_execute", track)
+
+    selects = [s for s in statements if s.lstrip().upper().startswith("SELECT")]
+    assert len(selects) == 1, f"N+1 regression! {len(selects)} SELECTs: {selects}"
