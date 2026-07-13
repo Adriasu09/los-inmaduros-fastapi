@@ -67,7 +67,7 @@ clear improvement that would require changing the contract or touching the front
 Real example already applied through this process: D5 (review DELETE widened from
 "author only" to "author or ADMIN").
 
-## 3. Stack and confirmed decisions (D1–D14)
+## 3. Stack and confirmed decisions (D1–D15)
 
 | Piece | Tool |
 |---|---|
@@ -118,6 +118,13 @@ Recorded decisions (summary; full detail lives in Notion):
   Express, approved in the D3 session. Disabled without `CLERK_WEBHOOK_SECRET` (route answers 404).
   Never creates users — first login owns creation (user-sync). Detail in `docs/api-contract.md`
   ("webhooks").
+- **D15**: backend deployed on **Render free tier** (Frankfurt) from branch **`main`** — a release
+  is a promotion PR develop→main, which auto-deploys. Build `uv sync --frozen --no-dev`; start
+  `uv run uvicorn src.main:app --host 0.0.0.0 --port $PORT`; health check `/health`. Live URL:
+  https://los-inmaduros-fastapi.onrender.com. Deploy gotchas (do not regress): use the Supabase
+  **Session pooler** URL (the direct connection is IPv6-only, unreachable from Render), and the
+  DSN must NOT carry Prisma-era params (`?pgbouncer=true&connection_limit=1` — psycopg2 rejects
+  them). Free tier sleeps after 15 min idle (~30-50s cold start): warm it up before demos.
 
 ## 4. Architecture: domain-based structure
 
