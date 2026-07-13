@@ -18,15 +18,15 @@ class CamelModel(BaseModel):
     )
 
 
-class Pagination(BaseModel):
+class Pagination(CamelModel):
     """Pagination block, exactly as the Express API returns it (camelCase)."""
 
     page: int
     limit: int
-    totalCount: int
-    totalPages: int
-    hasNextPage: bool
-    hasPreviousPage: bool
+    total_count: int
+    total_pages: int
+    has_next_page: bool
+    has_previous_page: bool
 
 
 class ApiResponse(BaseModel, Generic[T]):
