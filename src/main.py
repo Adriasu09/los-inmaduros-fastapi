@@ -11,14 +11,15 @@ from src.core.database import get_db
 from src.core.exceptions import register_exception_handlers
 import src.core.models_registry  # noqa: F401  (register all models before any is used)
 from src.core.schemas import ApiResponse
+from src.routes.router import router as routes_router
 
 
 def create_app() -> FastAPI:
     """App factory: build and configure the FastAPI application."""
     app = FastAPI(
         title="Los Inmaduros Rollers Madrid API",
-        docs_url="/api-docs",     
-        openapi_url="/api-docs.json", 
+        docs_url="/api-docs",
+        openapi_url="/api-docs.json",
     )
 
     # CORS: only these origins may call the API from a browser
@@ -35,6 +36,7 @@ def create_app() -> FastAPI:
     # Module routers will be registered here, one per session:
     app.include_router(auth_router)
     app.include_router(webhook_router)
+    app.include_router(routes_router)
 
     @app.get(
         "/health",
