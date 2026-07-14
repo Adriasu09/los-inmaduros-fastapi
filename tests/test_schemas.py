@@ -1,7 +1,7 @@
 from datetime import datetime
 from types import SimpleNamespace
 
-from src.core.schemas import CamelModel, UTCDateTime
+from src.core.schemas import CamelModel, UTCDateTime, UTCDateTimeIn
 
 
 class StampedSchema(CamelModel):
@@ -14,6 +14,12 @@ class RatedSchema(CamelModel):
     """Ad-hoc schema to pin the automatic snake -> camel aliasing."""
 
     average_rating: float
+
+
+class ScheduledSchema(CamelModel):
+    """Ad-hoc schema to pin the UTCDateTimeIn normalization on input."""
+
+    date_route: UTCDateTimeIn
 
 
 def test_utc_datetime_serializes_with_milliseconds_and_z():
@@ -51,3 +57,19 @@ def test_camel_model_builds_from_orm_like_attributes():
     schema = RatedSchema.model_validate(orm_like)
 
     assert schema.average_rating == 3.7
+
+
+def test_incoming_utc_z_becomes_naive_utc():
+    # "Z" means the client sent UTC; we store it naive, same clock reading
+    schema = ScheduledSchema.model_validate({"dateRoute": "2026-02-15T10:00:00Z"})
+
+    assert schema.date_route == datetime(2026, 2, 15, 10, 0, 0)
+    assert schema.date_route.tzinfo is None
+
+
+def test_incoming_offset_is_converted_to_utc_then_made_naive():
+    # +02:00 (Madrid) at 10:00 is 08:00 UTC: the instant must be preserved
+    schema = ScheduledSchema.model_validate({"dateRoute": "2026-02-15T10:00:00+02:00"})
+
+    assert schema.date_route == datetime(2026, 2, 15, 8, 0, 0)
+    assert schema.date_route.tzinfo is None
