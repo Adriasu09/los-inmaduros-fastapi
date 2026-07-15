@@ -11,6 +11,7 @@ from src.core.database import get_db
 from src.core.exceptions import register_exception_handlers
 import src.core.models_registry  # noqa: F401  (register all models before any is used)
 from src.core.schemas import ApiResponse
+from src.route_calls.router import router as route_calls_router
 from src.routes.router import router as routes_router
 
 
@@ -37,6 +38,7 @@ def create_app() -> FastAPI:
     app.include_router(auth_router)
     app.include_router(webhook_router)
     app.include_router(routes_router)
+    app.include_router(route_calls_router)
 
     @app.get(
         "/health",
