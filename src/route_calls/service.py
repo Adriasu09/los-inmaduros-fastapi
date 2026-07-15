@@ -1,7 +1,19 @@
-from sqlalchemy.orm import Session
+from datetime import datetime, timedelta
 
+from sqlalchemy import and_, func, or_, select
+from sqlalchemy.orm import Session, joinedload, selectinload
+
+from src.attendances.models import Attendance
+from src.common.pagination import build_pagination
+from src.core.database import utcnow
 from src.core.exceptions import BadRequestError, NotFoundError
-from src.route_calls.models import MeetingPoint, RouteCall
+from src.core.schemas import Pagination
+from src.route_calls.models import (
+    MeetingPoint,
+    RouteCall,
+    RouteCallStatus,
+    RoutePace,
+)
 from src.route_calls.schemas import (
     MeetingPointOut,
     RouteCallCounts,
@@ -85,3 +97,98 @@ def create_route_call(
 
     # A just-born route call cannot have attendances yet
     return _to_route_call_out(route_call, attendances=0)
+
+
+def list_route_calls(
+    db: Session,
+    *,
+    status: RouteCallStatus | None = None,
+    organizer_id: str | None = None,
+    route_id: str | None = None,
+    upcoming: bool | None = None,
+    pace: RoutePace | None = None,
+    month: str | None = None,
+    page: int = 1,
+    limit: int = 20,
+) -> tuple[list[RouteCallOut], Pagination]:
+    """List route calls with composable filters, ordered by dateRoute."""
+    conditions = []
+
+    if status is not None:
+        conditions.append(RouteCall.status == status)
+    if organizer_id is not None:
+        conditions.append(RouteCall.organizer_id == organizer_id)
+    if route_id is not None:
+        conditions.append(RouteCall.route_id == route_id)
+
+    if upcoming is not None:
+        # Product rule: a CANCELLED route call stays "upcoming" for 2 hours
+        # past its dateRoute, so people SEE it was cancelled (parity with Express)
+        two_hours_ago = utcnow() - timedelta(hours=2)
+        if upcoming:
+            conditions.append(
+                or_(
+                    RouteCall.status == RouteCallStatus.SCHEDULED,
+                    RouteCall.status == RouteCallStatus.ONGOING,
+                    and_(
+                        RouteCall.status == RouteCallStatus.CANCELLED,
+                        RouteCall.date_route >= two_hours_ago,
+                    ),
+                )
+            )
+        else:
+            conditions.append(
+                or_(
+                    RouteCall.status == RouteCallStatus.COMPLETED,
+                    and_(
+                        RouteCall.status == RouteCallStatus.CANCELLED,
+                        RouteCall.date_route < two_hours_ago,
+                    ),
+                )
+            )
+
+    if pace is not None:
+        conditions.append(RouteCall.paces.contains([pace]))
+
+    if month is not None:
+        year, month_number = map(int, month.split("-"))
+        start = datetime(year, month_number, 1)
+        if month_number == 12:
+            next_start = datetime(year + 1, 1, 1)
+        else:
+            next_start = datetime(year, month_number + 1, 1)
+        conditions.append(RouteCall.date_route >= start)
+        conditions.append(RouteCall.date_route < next_start)
+
+    total_count = db.execute(
+        select(func.count()).select_from(RouteCall).where(*conditions)
+    ).scalar_one()
+
+    # Past listings read newest-first; upcoming ones, soonest-first (Express parity)
+    order = (
+        RouteCall.date_route.desc()
+        if upcoming is False
+        else RouteCall.date_route.asc()
+    )
+
+    attendances_count = (
+        select(func.count())
+        .where(Attendance.route_call_id == RouteCall.id)
+        .scalar_subquery()
+    )
+
+    rows = db.execute(
+        select(RouteCall, attendances_count.label("attendances"))
+        .options(
+            joinedload(RouteCall.route),
+            joinedload(RouteCall.organizer),
+            selectinload(RouteCall.meeting_points),
+        )
+        .where(*conditions)
+        .order_by(order)
+        .offset((page - 1) * limit)
+        .limit(limit)
+    ).all()
+
+    items = [_to_route_call_out(route_call, count) for route_call, count in rows]
+    return items, build_pagination(page, limit, total_count)
