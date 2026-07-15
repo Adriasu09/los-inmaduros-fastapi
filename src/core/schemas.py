@@ -1,7 +1,7 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Annotated, Generic, TypeVar
 
-from pydantic import BaseModel, ConfigDict, PlainSerializer
+from pydantic import AfterValidator, BaseModel, ConfigDict, PlainSerializer
 from pydantic.alias_generators import to_camel
 
 # The "hole" in the generic: T = whatever type `data` carries in each response.
@@ -45,3 +45,13 @@ def _serialize_utc_z(dt: datetime) -> str:
 
 
 UTCDateTime = Annotated[datetime, PlainSerializer(_serialize_utc_z, return_type=str)]
+
+
+def _normalize_to_naive_utc(value: object) -> object:
+    """Convert incoming aware datetimes to naive UTC (project convention for storage)."""
+    if isinstance(value, datetime) and value.tzinfo is not None:
+        return value.astimezone(timezone.utc).replace(tzinfo=None)
+    return value
+
+
+UTCDateTimeIn = Annotated[datetime, AfterValidator(_normalize_to_naive_utc)]
