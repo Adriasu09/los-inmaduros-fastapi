@@ -61,6 +61,12 @@ Feature: Route calls (create, list, detail, update, cancel, delete)
     When I PATCH changes to the route call
     Then the response status is 403
 
+  Scenario: A non-organizer updating a completed route call gets 403
+    Given I am authenticated but not the organizer
+    And the route call is COMPLETED
+    When I PATCH changes to the route call
+    Then the response status is 403
+
   Scenario: Reject an update with a past dateRoute
     Given I am the organizer of a SCHEDULED route call
     When I PATCH a dateRoute in the past

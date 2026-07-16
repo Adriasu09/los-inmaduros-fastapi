@@ -68,6 +68,10 @@ Creation rules: future `dateRoute` required; without `routeId` → `title` requi
 from the enum (ROCA, CARACOL, GUSANO, MARIPOSA, EXPERIMENTADO, LOCURA_TOTAL, MIAUCORNIA);
 `meetingPoints` 1–2 with exactly one PRIMARY (location, when present, must be a Google Maps URL).
 
+Check order on update/cancel/delete (**D18**): `404 → permission (403) → state (400)`, uniform
+across the three endpoints (Express checked state before permission on update only; unified
+because permission-before-business-rules is the standard and the frontend never called these).
+
 ## attendances
 
 Nested under `/api/route-calls/:routeCallId/attendances`:
