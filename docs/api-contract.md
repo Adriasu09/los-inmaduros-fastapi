@@ -59,8 +59,8 @@ the endpoint URL + `user.updated` subscription in the Clerk dashboard and settin
 |---|---|---|---|
 | POST | `/api/route-calls` | Creates a route call (predefined or custom route); born `SCHEDULED` | Auth (+ `creationLimiter`) |
 | GET | `/api/route-calls` | List with filters (`status`, `upcoming`, `pace`, `routeId`, `organizerId`, `month` YYYY-MM) + pagination | Public |
-| GET | `/api/route-calls/:id` | Detail (organizer, meeting points, paces, CONFIRMED attendee count) | Public |
-| PUT | `/api/route-calls/:id` | Edits `title`/`description`/`image`/`dateRoute`/`paces`. Organizer only; not if `COMPLETED`/`CANCELLED` | Auth (organizer, in service) |
+| GET | `/api/route-calls/:id` | Detail (organizer, meeting points, paces, CONFIRMED attendees with user, total attendance `_count`). **D17**: the nested `route`/`organizer` use the same slices as the list — Express additionally emitted `route.description` and `organizer.lastName` there, but the frontend never read them | Public |
+| PATCH | `/api/route-calls/:id` | Edits `title`/`description`/`image`/`dateRoute`/`paces` (partial update). Organizer only; **editable only while `SCHEDULED`**. **D16**: was `PUT` in Express; renamed to PATCH (true partial-update semantics), `dateRoute`, when present, must be in the future (same rule as create; Express skipped it on update), and `ONGOING` is no longer editable (Express allowed it) — safe because the frontend never called it | Auth (organizer, in service) |
 | PATCH | `/api/route-calls/:id/cancel` | Cancels → `CANCELLED` (record is kept). Not if already cancelled or completed | Auth (organizer or ADMIN, in service) |
 | DELETE | `/api/route-calls/:id` | Hard delete. **Only if it has no attendances** (otherwise → 400 "cancel it instead"). Cascades over meeting points | Auth (organizer or ADMIN, in service; UI shows it to ADMIN only, D4) |
 

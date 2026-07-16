@@ -52,18 +52,28 @@ Feature: Route calls (create, list, detail, update, cancel, delete)
 
   Scenario: Organizer updates a scheduled route call
     Given I am the organizer of a SCHEDULED route call
-    When I PUT new title and paces
+    When I PATCH new title and paces
     Then the response status is 200
     And the route call reflects the new values
 
   Scenario: A non-organizer cannot update
     Given I am authenticated but not the organizer
-    When I PUT changes to the route call
+    When I PATCH changes to the route call
     Then the response status is 403
+
+  Scenario: Reject an update with a past dateRoute
+    Given I am the organizer of a SCHEDULED route call
+    When I PATCH a dateRoute in the past
+    Then the response status is 400
 
   Scenario: Cannot update a completed route call
     Given I am the organizer of a COMPLETED route call
-    When I PUT changes
+    When I PATCH changes
+    Then the response status is 400
+
+  Scenario: Cannot update an ongoing route call
+    Given I am the organizer of an ONGOING route call
+    When I PATCH changes
     Then the response status is 400
 
   Scenario: Organizer cancels a scheduled route call
