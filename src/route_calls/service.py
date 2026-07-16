@@ -1,9 +1,10 @@
+from collections.abc import Sequence
 from datetime import datetime, timedelta
 
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session, joinedload, selectinload
 
-from src.attendances.models import Attendance
+from src.attendances.models import Attendance, AttendanceStatus
 from src.common.pagination import build_pagination
 from src.core.database import utcnow
 from src.core.exceptions import BadRequestError, NotFoundError
@@ -15,9 +16,11 @@ from src.route_calls.models import (
     RoutePace,
 )
 from src.route_calls.schemas import (
+    AttendeeOut,
     MeetingPointOut,
     RouteCallCounts,
     RouteCallCreateIn,
+    RouteCallDetailOut,
     RouteCallOut,
     RouteSummaryOut,
 )
@@ -53,6 +56,19 @@ def _to_route_call_out(route_call: RouteCall, attendances: int) -> RouteCallOut:
         organizer=UserPublicOut.model_validate(route_call.organizer),
         meeting_points=[MeetingPointOut.model_validate(p) for p in ordered_points],
         counts=RouteCallCounts(attendances=attendances),
+    )
+
+
+def _to_route_call_detail_out(
+    route_call: RouteCall,
+    confirmed_attendances: Sequence[Attendance],
+    total_attendances: int,
+) -> RouteCallDetailOut:
+    """Detail = the base serialization + the CONFIRMED attendees with their user."""
+    base = _to_route_call_out(route_call, attendances=total_attendances)
+    return RouteCallDetailOut(
+        **base.model_dump(),
+        attendances=[AttendeeOut.model_validate(a) for a in confirmed_attendances],
     )
 
 
@@ -192,3 +208,41 @@ def list_route_calls(
 
     items = [_to_route_call_out(route_call, count) for route_call, count in rows]
     return items, build_pagination(page, limit, total_count)
+
+
+def get_route_call_by_id(db: Session, route_call_id: str) -> RouteCallDetailOut:
+    """Route call detail: relations + CONFIRMED attendees + total attendance count."""
+    route_call = db.get(
+        RouteCall,
+        route_call_id,
+        options=[
+            joinedload(RouteCall.route),
+            joinedload(RouteCall.organizer),
+            selectinload(RouteCall.meeting_points),
+        ],
+    )
+    if route_call is None:
+        raise NotFoundError("Route call not found")
+
+    confirmed_attendances = (
+        db.execute(
+            select(Attendance)
+            .options(joinedload(Attendance.user))
+            .where(
+                Attendance.route_call_id == route_call_id,
+                Attendance.status == AttendanceStatus.CONFIRMED,
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+    # Express quirk kept on purpose: _count includes EVERY status,
+    # while the list above is CONFIRMED-only (improvement candidate)
+    total_attendances = db.execute(
+        select(func.count())
+        .select_from(Attendance)
+        .where(Attendance.route_call_id == route_call_id)
+    ).scalar_one()
+
+    return _to_route_call_detail_out(route_call, confirmed_attendances, total_attendances)
