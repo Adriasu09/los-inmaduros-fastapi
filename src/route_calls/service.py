@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session, joinedload, selectinload
 from src.attendances.models import Attendance, AttendanceStatus
 from src.common.pagination import build_pagination
 from src.core.database import utcnow
-from src.core.exceptions import BadRequestError, NotFoundError
+from src.core.exceptions import BadRequestError, ForbiddenError, NotFoundError
 from src.core.schemas import Pagination
 from src.route_calls.models import (
     MeetingPoint,
@@ -22,6 +22,7 @@ from src.route_calls.schemas import (
     RouteCallCreateIn,
     RouteCallDetailOut,
     RouteCallOut,
+    RouteCallUpdateIn,
     RouteSummaryOut,
 )
 from src.routes.models import Route
@@ -246,3 +247,45 @@ def get_route_call_by_id(db: Session, route_call_id: str) -> RouteCallDetailOut:
     ).scalar_one()
 
     return _to_route_call_detail_out(route_call, confirmed_attendances, total_attendances)
+
+
+def update_route_call(
+    db: Session, route_call_id: str, user_id: str, data: RouteCallUpdateIn
+) -> RouteCallOut:
+    """Partial update of a route call (organizer only, SCHEDULED only — D16/D18)."""
+    route_call = db.get(
+        RouteCall,
+        route_call_id,
+        options=[
+            joinedload(RouteCall.route),
+            joinedload(RouteCall.organizer),
+            selectinload(RouteCall.meeting_points),
+        ],
+    )
+    if route_call is None:
+        raise NotFoundError("Route call not found")
+
+    # D18: permission before business state, uniform across the module
+    if route_call.organizer_id != user_id:
+        raise ForbiddenError("Only the organizer can update this route call")
+
+    if route_call.status is RouteCallStatus.COMPLETED:
+        raise BadRequestError("Cannot update a completed route call")
+    if route_call.status is RouteCallStatus.CANCELLED:
+        raise BadRequestError("Cannot update a cancelled route call")
+    # D16: ONGOING is no longer editable either — only SCHEDULED remains
+    if route_call.status is RouteCallStatus.ONGOING:
+        raise BadRequestError("Cannot update an ongoing route call")
+
+    # Partial update: apply ONLY the fields the client actually sent
+    for field in data.model_fields_set:
+        setattr(route_call, field, getattr(data, field))
+    db.commit()
+
+    total_attendances = db.execute(
+        select(func.count())
+        .select_from(Attendance)
+        .where(Attendance.route_call_id == route_call_id)
+    ).scalar_one()
+
+    return _to_route_call_out(route_call, total_attendances)
