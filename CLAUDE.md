@@ -99,7 +99,9 @@ Recorded decisions (summary; full detail lives in Notion):
   (`sendPhoto` with the cover image + caption, or `sendMessage` when there is no image) from
   `common/notifications.py`, fired with BackgroundTasks from the route-calls service.
   P2 and disabled by default: without `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` in the .env,
-  it does nothing.
+  it does nothing. Extended in the D6 session (17-jul): ALSO notify on route-call
+  cancellation (`sendMessage` fired from the cancel service, same rules) — people who saw
+  the announcement on Telegram and never open the web must learn it was cancelled.
 - **D10 / D11**: frontend accessibility approach and the Claude Code mentor working mode —
   recorded in Notion (frontend/workflow scope). The working mode is section 0 of this file.
 - **D12**: the official FastAPI skill (`.claude/skills/fastapi/`, copied from the
@@ -213,7 +215,9 @@ reference/express-backend # clone of the old Express backend, READ-ONLY, in .git
   Requirements: clean the Tiptap HTML out of the caption (convert `<strong>`→`<b>`, `<em>`→`<i>`,
   strip `<p>` and any other tags Telegram does not support), truncate the caption to 1024
   characters with the website link at the end, short timeout (2-3s) and error capture: a Telegram
-  failure must NEVER break route-call creation. Add `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID`
+  failure must NEVER break route-call creation. Same channel on cancellation (D6 extension):
+  a plain `sendMessage` announcing the route call was cancelled, fired from the cancel service
+  under the same rules. Add `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID`
   as optional settings in `core/config.py` and `.env.example`.
 - Do not use async/await with SQLAlchemy or asyncpg (D7).
 - Do not use SQLModel, even though the FastAPI skill suggests it (D12): models are plain
