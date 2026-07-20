@@ -3,11 +3,29 @@ from urllib.parse import urlparse
 
 from pydantic import Field, field_validator, model_validator
 
+from src.attendances.models import AttendanceStatus
 from src.core.database import utcnow
 from src.core.schemas import CamelModel, UTCDateTime, UTCDateTimeIn
 from src.route_calls.models import MeetingPointType, RoutePace, RouteCallStatus
 from src.routes.models import RouteLevel
 from src.routes.schemas import UserPublicOut
+
+
+def validate_image_url(value: str | None) -> str | None:
+    """Shared by create and update: image must be a valid http(s) URL."""
+    if value is None:
+        return value
+    parsed = urlparse(value)
+    if parsed.scheme not in ("http", "https") or not parsed.netloc:
+        raise ValueError("Must be a valid URL")
+    return value
+
+
+def validate_future_date(value: datetime) -> datetime:
+    """Shared by create and update: a route call date must be in the future."""
+    if value <= utcnow():
+        raise ValueError("Route call date must be in the future")
+    return value
 
 
 class MeetingPointIn(CamelModel):
@@ -46,19 +64,12 @@ class RouteCallCreateIn(CamelModel):
     @field_validator("image")
     @classmethod
     def _image_is_url(cls, value: str | None) -> str | None:
-        if value is None:
-            return value
-        parsed = urlparse(value)
-        if parsed.scheme not in ("http", "https") or not parsed.netloc:
-            raise ValueError("Must be a valid URL")
-        return value
+        return validate_image_url(value)
 
     @field_validator("date_route")
     @classmethod
     def _must_be_in_the_future(cls, value: datetime) -> datetime:
-        if value <= utcnow():
-            raise ValueError("Route call date must be in the future")
-        return value
+        return validate_future_date(value)
 
     @model_validator(mode="after")
     def _check_meeting_points(self) -> "RouteCallCreateIn":
@@ -68,6 +79,36 @@ class RouteCallCreateIn(CamelModel):
             raise ValueError("Exactly one PRIMARY meeting point is required")
         if secondary > 1:
             raise ValueError("Only one SECONDARY meeting point is allowed")
+        return self
+
+
+class RouteCallUpdateIn(CamelModel):
+    """Body for PATCH /api/route-calls/{id}: partial update, every field optional."""
+
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    description: str | None = Field(default=None, max_length=1000)
+    image: str | None = None
+    date_route: UTCDateTimeIn | None = None
+    paces: list[RoutePace] | None = Field(default=None, min_length=1, max_length=7)
+
+    @field_validator("image")
+    @classmethod
+    def _image_is_url(cls, value: str | None) -> str | None:
+        return validate_image_url(value)
+
+    @field_validator("date_route")
+    @classmethod
+    def _must_be_in_the_future(cls, value: datetime | None) -> datetime | None:
+        if value is None:
+            return value
+        return validate_future_date(value)
+
+    @model_validator(mode="after")
+    def _reject_explicit_nulls(self) -> "RouteCallUpdateIn":
+        # NOT NULL columns: absent is fine (partial update), explicit null is not
+        for field in ("title", "date_route", "paces"):
+            if field in self.model_fields_set and getattr(self, field) is None:
+                raise ValueError(f"{field} cannot be null")
         return self
 
 
@@ -120,3 +161,17 @@ class RouteCallOut(CamelModel):
     # Pydantic forbids field names starting with "_"; an explicit
     # serialization_alias beats the generator and emits the contract's "_count"
     counts: RouteCallCounts = Field(serialization_alias="_count")
+
+
+class AttendeeOut(CamelModel):
+    """A CONFIRMED attendance embedded in the route call detail."""
+
+    id: str
+    status: AttendanceStatus
+    user: UserPublicOut
+
+
+class RouteCallDetailOut(RouteCallOut):
+    """Detail response: RouteCallOut + the CONFIRMED attendees list."""
+
+    attendances: list[AttendeeOut]

@@ -1,12 +1,14 @@
+from collections.abc import Sequence
 from datetime import datetime, timedelta
 
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session, joinedload, selectinload
 
-from src.attendances.models import Attendance
+from src.attendances.models import Attendance, AttendanceStatus
+from src.auth.models import UserRole
 from src.common.pagination import build_pagination
 from src.core.database import utcnow
-from src.core.exceptions import BadRequestError, NotFoundError
+from src.core.exceptions import BadRequestError, ForbiddenError, NotFoundError
 from src.core.schemas import Pagination
 from src.route_calls.models import (
     MeetingPoint,
@@ -15,10 +17,13 @@ from src.route_calls.models import (
     RoutePace,
 )
 from src.route_calls.schemas import (
+    AttendeeOut,
     MeetingPointOut,
     RouteCallCounts,
     RouteCallCreateIn,
+    RouteCallDetailOut,
     RouteCallOut,
+    RouteCallUpdateIn,
     RouteSummaryOut,
 )
 from src.routes.models import Route
@@ -54,6 +59,28 @@ def _to_route_call_out(route_call: RouteCall, attendances: int) -> RouteCallOut:
         meeting_points=[MeetingPointOut.model_validate(p) for p in ordered_points],
         counts=RouteCallCounts(attendances=attendances),
     )
+
+
+def _to_route_call_detail_out(
+    route_call: RouteCall,
+    confirmed_attendances: Sequence[Attendance],
+    total_attendances: int,
+) -> RouteCallDetailOut:
+    """Detail = the base serialization + the CONFIRMED attendees with their user."""
+    base = _to_route_call_out(route_call, attendances=total_attendances)
+    return RouteCallDetailOut(
+        **base.model_dump(),
+        attendances=[AttendeeOut.model_validate(a) for a in confirmed_attendances],
+    )
+
+
+def _count_attendances(db: Session, route_call_id: str) -> int:
+    """Total attendances of a route call, ANY status (Express counted them all)."""
+    return db.execute(
+        select(func.count())
+        .select_from(Attendance)
+        .where(Attendance.route_call_id == route_call_id)
+    ).scalar_one()
 
 
 def create_route_call(
@@ -192,3 +219,131 @@ def list_route_calls(
 
     items = [_to_route_call_out(route_call, count) for route_call, count in rows]
     return items, build_pagination(page, limit, total_count)
+
+
+def get_route_call_by_id(db: Session, route_call_id: str) -> RouteCallDetailOut:
+    """Route call detail: relations + CONFIRMED attendees + total attendance count."""
+    route_call = db.get(
+        RouteCall,
+        route_call_id,
+        options=[
+            joinedload(RouteCall.route),
+            joinedload(RouteCall.organizer),
+            selectinload(RouteCall.meeting_points),
+        ],
+    )
+    if route_call is None:
+        raise NotFoundError("Route call not found")
+
+    confirmed_attendances = (
+        db.execute(
+            select(Attendance)
+            .options(joinedload(Attendance.user))
+            .where(
+                Attendance.route_call_id == route_call_id,
+                Attendance.status == AttendanceStatus.CONFIRMED,
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+    # Express quirk kept on purpose: _count includes EVERY status,
+    # while the list above is CONFIRMED-only (improvement candidate)
+    total_attendances = _count_attendances(db, route_call_id)
+
+    return _to_route_call_detail_out(route_call, confirmed_attendances, total_attendances)
+
+
+def update_route_call(
+    db: Session, route_call_id: str, user_id: str, data: RouteCallUpdateIn
+) -> RouteCallOut:
+    """Partial update of a route call (organizer only, SCHEDULED only — D16/D18)."""
+    route_call = db.get(
+        RouteCall,
+        route_call_id,
+        options=[
+            joinedload(RouteCall.route),
+            joinedload(RouteCall.organizer),
+            selectinload(RouteCall.meeting_points),
+        ],
+    )
+    if route_call is None:
+        raise NotFoundError("Route call not found")
+
+    # D18: permission before business state, uniform across the module
+    if route_call.organizer_id != user_id:
+        raise ForbiddenError("Only the organizer can update this route call")
+
+    if route_call.status is RouteCallStatus.COMPLETED:
+        raise BadRequestError("Cannot update a completed route call")
+    if route_call.status is RouteCallStatus.CANCELLED:
+        raise BadRequestError("Cannot update a cancelled route call")
+    # D16: ONGOING is no longer editable either — only SCHEDULED remains
+    if route_call.status is RouteCallStatus.ONGOING:
+        raise BadRequestError("Cannot update an ongoing route call")
+
+    # Partial update: apply ONLY the fields the client actually sent
+    for field in data.model_fields_set:
+        setattr(route_call, field, getattr(data, field))
+    db.commit()
+
+    total_attendances = _count_attendances(db, route_call_id)
+
+    return _to_route_call_out(route_call, total_attendances)
+
+
+def cancel_route_call(
+    db: Session, route_call_id: str, user_id: str, user_role: UserRole
+) -> RouteCallOut:
+    """Cancel a route call (organizer or admin): soft state change, record kept."""
+    route_call = db.get(
+        RouteCall,
+        route_call_id,
+        options=[
+            joinedload(RouteCall.route),
+            joinedload(RouteCall.organizer),
+            selectinload(RouteCall.meeting_points),
+        ],
+    )
+    if route_call is None:
+        raise NotFoundError("Route call not found")
+
+    if route_call.organizer_id != user_id and user_role is not UserRole.ADMIN:
+        raise ForbiddenError(
+            "Only the organizer or an admin can cancel this route call"
+        )
+
+    if route_call.status is RouteCallStatus.COMPLETED:
+        raise BadRequestError("Cannot cancel a completed route call")
+    if route_call.status is RouteCallStatus.CANCELLED:
+        raise BadRequestError("Route call is already cancelled")
+
+    route_call.status = RouteCallStatus.CANCELLED
+    db.commit()
+
+    return _to_route_call_out(route_call, _count_attendances(db, route_call_id))
+
+
+def delete_route_call(
+    db: Session, route_call_id: str, user_id: str, user_role: UserRole
+) -> None:
+    """Hard delete (organizer or admin), only with zero attendances (any status)."""
+    route_call = db.get(RouteCall, route_call_id)
+    if route_call is None:
+        raise NotFoundError("Route call not found")
+
+    if route_call.organizer_id != user_id and user_role is not UserRole.ADMIN:
+        raise ForbiddenError(
+            "Only the organizer or an admin can delete this route call"
+        )
+
+    if _count_attendances(db, route_call_id) > 0:
+        raise BadRequestError(
+            "Cannot delete a route call with attendances. Cancel it instead."
+        )
+
+    # PostgreSQL's ON DELETE CASCADE removes the meeting points
+    # (passive_deletes=True keeps the ORM from deleting them row by row)
+    db.delete(route_call)
+    db.commit()

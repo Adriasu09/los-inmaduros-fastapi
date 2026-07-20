@@ -7,7 +7,12 @@ from src.core.database import get_db
 from src.core.schemas import ApiResponse
 from src.route_calls import service
 from src.route_calls.models import RouteCallStatus, RoutePace
-from src.route_calls.schemas import RouteCallCreateIn, RouteCallOut
+from src.route_calls.schemas import (
+    RouteCallCreateIn,
+    RouteCallDetailOut,
+    RouteCallOut,
+    RouteCallUpdateIn,
+)
 
 router = APIRouter(prefix="/api/route-calls", tags=["Route Calls"])
 
@@ -59,3 +64,63 @@ def list_route_calls(
     return ApiResponse[list[RouteCallOut]](
         success=True, data=route_calls, pagination=pagination
     )
+
+
+@router.get(
+    "/{route_call_id}",
+    response_model=ApiResponse[RouteCallDetailOut],
+    response_model_exclude_unset=True,
+)
+def get_route_call_by_id(
+    route_call_id: str,
+    db: Session = Depends(get_db),
+):
+    route_call = service.get_route_call_by_id(db, route_call_id)
+    return ApiResponse[RouteCallDetailOut](success=True, data=route_call)
+
+
+@router.patch(
+    "/{route_call_id}",
+    response_model=ApiResponse[RouteCallOut],
+    response_model_exclude_unset=True,
+)
+def update_route_call(
+    route_call_id: str,
+    data: RouteCallUpdateIn,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    route_call = service.update_route_call(db, route_call_id, user.id, data)
+    return ApiResponse[RouteCallOut](
+        success=True, data=route_call, message="Route call updated successfully"
+    )
+
+
+@router.patch(
+    "/{route_call_id}/cancel",
+    response_model=ApiResponse[RouteCallOut],
+    response_model_exclude_unset=True,
+)
+def cancel_route_call(
+    route_call_id: str,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    route_call = service.cancel_route_call(db, route_call_id, user.id, user.role)
+    return ApiResponse[RouteCallOut](
+        success=True, data=route_call, message="Route call cancelled successfully"
+    )
+
+
+@router.delete(
+    "/{route_call_id}",
+    response_model=ApiResponse[dict],
+    response_model_exclude_unset=True,
+)
+def delete_route_call(
+    route_call_id: str,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    service.delete_route_call(db, route_call_id, user.id, user.role)
+    return ApiResponse[dict](success=True, message="Route call deleted successfully")

@@ -103,3 +103,14 @@ def users_table_residue_guard():
     with engine.connect() as conn:
         after = conn.execute(text("SELECT COUNT(*) FROM users")).scalar()
     assert after == before, f"Tests left residue in users: {before} -> {after}"
+
+
+@pytest.fixture()
+def make_user(db_session):
+    """Factory: persist a synthetic user inside the savepoint bubble."""
+    def _make(role: UserRole = UserRole.USER) -> User:
+        user = fake_user(role)
+        db_session.add(user)
+        db_session.commit()  # savepoint: evaporates on rollback
+        return user
+    return _make
