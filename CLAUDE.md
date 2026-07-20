@@ -67,7 +67,7 @@ clear improvement that would require changing the contract or touching the front
 Real example already applied through this process: D5 (review DELETE widened from
 "author only" to "author or ADMIN").
 
-## 3. Stack and confirmed decisions (D1–D15)
+## 3. Stack and confirmed decisions (D1–D18)
 
 | Piece | Tool |
 |---|---|
@@ -127,6 +127,19 @@ Recorded decisions (summary; full detail lives in Notion):
   **Session pooler** URL (the direct connection is IPv6-only, unreachable from Render), and the
   DSN must NOT carry Prisma-era params (`?pgbouncer=true&connection_limit=1` — psycopg2 rejects
   them). Free tier sleeps after 15 min idle (~30-50s cold start): warm it up before demos.
+- **D16**: the route-call edit endpoint is `PATCH /api/route-calls/:id` (Express used PUT with
+  partial-update semantics), `dateRoute`, when present, must be in the future (same rule as
+  create), and editing is only allowed while `SCHEDULED` (Express also allowed ONGOING).
+  Verified safe: the frontend never called the endpoint. Still organizer-only, no admin (D4).
+  Approved in the D6 session (17-jul).
+- **D17**: the route-call detail emits `route`/`organizer` with the SAME slim slices as the
+  list. Express additionally emitted `route.description` and `organizer.lastName` there;
+  verified the frontend never read either — dropped from the payload. D6 session (17-jul).
+- **D18**: unified check order across the route-call management services (update/cancel/delete):
+  `404 → permission (403) → state (400)`. Express checked state before permission on update
+  only, an inconsistency with no purpose; permission-first is the professional standard. A
+  gherkin scenario pins the cross case (non-organizer + COMPLETED → 403, where Express
+  answered 400). D6 session (17-jul).
 
 ## 4. Architecture: domain-based structure
 
