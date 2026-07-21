@@ -91,9 +91,12 @@ def get_route_call_attendances(
 def check_attendance(db: Session, user_id: str, route_call_id: str) -> CheckOut:
     """Am I attending? True only for a CONFIRMED row.
 
-    Deliberately does NOT verify the route call exists (Express quirk, mirrored):
-    a non-existent route call answers {isAttending: false}, never 404.
+    D20: unlike Express (which skipped this check), a non-existent route call
+    404s here too — consistent with its three siblings (POST/DELETE/GET list).
     """
+    if db.get(RouteCall, route_call_id) is None:
+        raise NotFoundError("Route call not found")
+
     attendance = _get_attendance(db, route_call_id, user_id)
     is_attending = (
         attendance is not None and attendance.status is AttendanceStatus.CONFIRMED
