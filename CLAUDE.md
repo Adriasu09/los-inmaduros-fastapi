@@ -67,7 +67,7 @@ clear improvement that would require changing the contract or touching the front
 Real example already applied through this process: D5 (review DELETE widened from
 "author only" to "author or ADMIN").
 
-## 3. Stack and confirmed decisions (D1–D20)
+## 3. Stack and confirmed decisions (D1–D21)
 
 | Piece | Tool |
 |---|---|
@@ -154,6 +154,14 @@ Recorded decisions (summary; full detail lives in Notion):
   session: route-call/attendance `:id` path params are validated as UUID (400 on a malformed id,
   mirroring Express' Zod `.uuid()`); the route-calls endpoints previously answered 404 (typed as
   `str`) — aligned to UUID here. D7 session (21-jul).
+- **D21**: hosting keep-alive strategy (free tier). Do NOT migrate off Render for now; keep the
+  service awake with an **external pinger** (UptimeRobot or a GitHub Actions cron hitting `/health`
+  every ≤10 min). Reason: Render free sleeps after 15 min idle AND our APScheduler is in-process —
+  a sleeping service means the scheduler never fires. One 24/7 service fits in the free 750 h/month.
+  Paired with an idempotent **catch-up scheduler** (each run transitions ALL overdue route calls at
+  once), robust against a missed ping or a maintenance restart. Future path (no urgency,
+  post-presentation): Stripe donations module → funded → Render paid tier or Fly.io
+  (`min_machines_running=1`). Cloud Run rejected (scale-to-zero still sleeps). Approved 21-jul (D8).
 
 ## 4. Architecture: domain-based structure
 

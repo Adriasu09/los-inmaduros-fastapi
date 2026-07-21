@@ -1,0 +1,30 @@
+name: Keep Render awake
+
+# Render's free tier sleeps after 15 min without inbound traffic, which also
+# freezes our in-process APScheduler (a sleeping process can't fire its timer).
+# This cron pings /health every 10 min so the service stays awake and the
+# scheduler keeps transitioning route-call statuses. See decision D21.
+#
+# Notes:
+# - GitHub only runs `schedule` from the DEFAULT branch (main), so this file
+#   must reach main to start firing.
+# - Scheduled runs are best-effort and can be delayed a few minutes under load;
+#   the idempotent catch-up scheduler absorbs any missed tick.
+# - `--fail` makes a non-2xx response fail the job, so a broken backend shows up
+#   as a failed workflow run (a free downtime signal in the Actions tab / email).
+
+on:
+  schedule:
+    - cron: "*/10 * * * *" # every 10 minutes (safely under Render's 15-min idle)
+  workflow_dispatch: # manual "Run workflow" button in the Actions tab
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping /health
+        run: |
+          curl --fail --silent --show-error \
+            --max-time 90 \
+            --retry 3 --retry-delay 20 \
+            https://los-inmaduros-fastapi.onrender.com/health
