@@ -105,8 +105,7 @@ class RouteCallUpdateIn(CamelModel):
 
     @model_validator(mode="after")
     def _reject_explicit_nulls(self) -> "RouteCallUpdateIn":
-        # NOT NULL columns: absent is fine (partial update), explicit null is not
-        for field in ("title", "date_route", "paces"):
+        for field in ("title", "date_route", "paces", "image"):
             if field in self.model_fields_set and getattr(self, field) is None:
                 raise ValueError(f"{field} cannot be null")
         return self

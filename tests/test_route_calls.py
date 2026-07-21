@@ -456,7 +456,7 @@ def test_cancel_a_completed_route_call_returns_400(
     assert response.json()["message"] == "Cannot cancel a completed route call"
 
 
-@pytest.mark.parametrize("field", ["title", "dateRoute", "paces"])
+@pytest.mark.parametrize("field", ["title", "dateRoute", "paces", "image"])
 def test_update_with_explicit_null_on_required_field_returns_400(
     client_db, organizer, db_session, field
 ):
