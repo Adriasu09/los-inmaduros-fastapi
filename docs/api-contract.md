@@ -78,18 +78,23 @@ Nested under `/api/route-calls/:routeCallId/attendances`:
 
 | Method | Route | What it does | Auth |
 |---|---|---|---|
-| GET | `.../attendances/check` | Am I attending? → `isAttending` (true only if CONFIRMED) | Auth |
-| POST | `.../attendances` | Join → CONFIRMED. 400 if the route call is CANCELLED/COMPLETED; 409 if already joined; reactivates a previously CANCELLED one | Auth (+ `creationLimiter`) |
-| DELETE | `.../attendances` | Cancels my attendance → CANCELLED (record kept). 404 if I have none; 400 if already cancelled | Auth |
-| GET | `.../attendances` | Lists attendees (CONFIRMED only, with basic user data) | Public |
+| GET | `.../attendances/check` | Am I attending? → `isAttending` (true only if CONFIRMED). **D20**: 404 if the route call does not exist — Express skipped this check and answered `{isAttending:false}`; aligned with its POST/DELETE/list siblings (deliberate improvement, verified zero frontend impact: the hook degrades to `false` on error) | Auth |
+| POST | `.../attendances` | Join → CONFIRMED. 400 if the route call is CANCELLED/COMPLETED; 409 if already joined; reactivates a previously CANCELLED one. **D19**: returns the flat attendance (`id, routeCallId, userId, status, createdAt, updatedAt`) — Express embedded `routeCall`+`user`, but the frontend's toggle mutation never reads this body | Auth (+ `creationLimiter`) |
+| DELETE | `.../attendances` | Cancels my attendance → CANCELLED (record kept). 404 if I have none; 400 if already cancelled. **D19**: same flat attendance body as POST (Express emitted a mini `routeCall`; also unread) | Auth |
+| GET | `.../attendances` | Lists attendees (CONFIRMED only), oldest join first, each with its `user`. **D19**: the user slice is `UserPublicOut` (id, name, imageUrl) — Express also emitted `lastName` here, dropped (unread by the frontend, and unifies with the route-call detail's embedded attendees) | Public |
 
 Flat under `/api/attendances`:
 
 | Method | Route | What it does | Auth |
 |---|---|---|---|
-| GET | `/api/attendances/my-attendances` | My CONFIRMED attendances (with route-call and organizer data) | Auth |
+| GET | `/api/attendances/my-attendances` | My CONFIRMED attendances, soonest `dateRoute` first, each with the full route call embedded (`RouteCallOut`: route, organizer, meeting points, `_count`). Currently unused by the frontend (kept for the future profile page) | Auth |
 
-Uniqueness per (routeCallId, userId); re-joining reuses the same record.
+Uniqueness per (routeCallId, userId); re-joining reuses the same record (an UPDATE of the
+CANCELLED row to CONFIRMED, never a second INSERT).
+
+`:routeCallId` — and route-calls' `:id` — is validated as a UUID: a malformed id is a 400,
+not a 404 (mirrors Express' Zod `.uuid()`). The route-calls endpoints previously answered 404
+on a non-UUID (typed as `str`); aligned to UUID in the attendances session.
 
 ## reviews
 

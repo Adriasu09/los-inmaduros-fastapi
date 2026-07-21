@@ -319,6 +319,14 @@ def test_detail_of_unknown_route_call_returns_404(client_db):
     assert body["message"] == "Route call not found"
 
 
+def test_detail_with_non_uuid_id_returns_400(client_db):
+    # The id path param is validated as UUID: a malformed id is a 400, not a 404
+    response = client_db.get("/api/route-calls/not-a-uuid")
+
+    assert response.status_code == 400
+    assert response.json()["success"] is False
+
+
 # --- PATCH /api/route-calls/{id} -------------------------------------------
 
 

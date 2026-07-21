@@ -140,6 +140,20 @@ Recorded decisions (summary; full detail lives in Notion):
   only, an inconsistency with no purpose; permission-first is the professional standard. A
   gherkin scenario pins the cross case (non-organizer + COMPLETED → 403, where Express
   answered 400). D6 session (17-jul).
+- **D19**: attendance response shapes unified/slimmed to what the frontend actually consumes.
+  `POST`/`DELETE .../attendances` return the flat attendance
+  (`id, routeCallId, userId, status, createdAt, updatedAt`) — Express embedded `routeCall`/`user`
+  (POST) and a mini `routeCall` (DELETE), but the frontend's toggle mutation only invalidates
+  queries and never reads the body. The public attendees list drops Express' `lastName` (now
+  `UserPublicOut`), so every attendee slice in the API is the same shape. Zero frontend impact
+  (verified: `Attendance` type has no `routeCall`, `user` optional, `lastName` unread). D7
+  session (21-jul).
+- **D20**: `GET .../attendances/check` now 404s when the route call does not exist — Express
+  skipped the check and returned `{isAttending:false}`; aligned with its POST/DELETE/list
+  siblings. Zero frontend impact: the `useIsAttending` hook degrades to `false` on error. Same
+  session: route-call/attendance `:id` path params are validated as UUID (400 on a malformed id,
+  mirroring Express' Zod `.uuid()`); the route-calls endpoints previously answered 404 (typed as
+  `str`) — aligned to UUID here. D7 session (21-jul).
 
 ## 4. Architecture: domain-based structure
 
