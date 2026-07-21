@@ -1,5 +1,11 @@
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session, contains_eager, joinedload, selectinload
+from sqlalchemy.orm import (
+    Session,
+    aliased,
+    contains_eager,
+    joinedload,
+    selectinload,
+)
 
 from src.attendances.models import Attendance, AttendanceStatus
 from src.attendances.schemas import (
@@ -106,9 +112,14 @@ def check_attendance(db: Session, user_id: str, route_call_id: str) -> CheckOut:
 
 def get_user_attendances(db: Session, user_id: str) -> list[MyAttendanceOut]:
     """My CONFIRMED attendances, soonest route call first, full route call embedded."""
+    # Count over an ALIAS of Attendance: the outer query already selects from
+    # Attendance, so a bare subquery would auto-correlate it away (no FROM left).
+    # The alias is a distinct table instance; we correlate only RouteCall.
+    counter = aliased(Attendance)
     attendances_count = (
-        select(func.count())
-        .where(Attendance.route_call_id == RouteCall.id)
+        select(func.count(counter.id))
+        .where(counter.route_call_id == RouteCall.id)
+        .correlate(RouteCall)
         .scalar_subquery()
     )
 

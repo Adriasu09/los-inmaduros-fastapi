@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
@@ -28,11 +30,11 @@ flat_router = APIRouter(prefix="/api/attendances", tags=["Attendances"])
     response_model_exclude_unset=True,
 )
 def check_attendance(
-    route_call_id: str,
+    route_call_id: UUID,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    result = service.check_attendance(db, user.id, route_call_id)
+    result = service.check_attendance(db, user.id, str(route_call_id))
     return ApiResponse[CheckOut](success=True, data=result)
 
 
@@ -43,11 +45,11 @@ def check_attendance(
     response_model_exclude_unset=True,
 )
 def confirm_attendance(
-    route_call_id: str,
+    route_call_id: UUID,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    attendance = service.confirm_attendance(db, user.id, route_call_id)
+    attendance = service.confirm_attendance(db, user.id, str(route_call_id))
     return ApiResponse[AttendanceOut](
         success=True, data=attendance, message="Attendance confirmed successfully"
     )
@@ -59,11 +61,11 @@ def confirm_attendance(
     response_model_exclude_unset=True,
 )
 def cancel_attendance(
-    route_call_id: str,
+    route_call_id: UUID,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    attendance = service.cancel_attendance(db, user.id, route_call_id)
+    attendance = service.cancel_attendance(db, user.id, str(route_call_id))
     return ApiResponse[AttendanceOut](
         success=True, data=attendance, message="Attendance cancelled successfully"
     )
@@ -74,8 +76,8 @@ def cancel_attendance(
     response_model=ApiResponse[list[RouteCallAttendeeOut]],
     response_model_exclude_unset=True,
 )
-def get_route_call_attendances(route_call_id: str, db: Session = Depends(get_db)):
-    attendances = service.get_route_call_attendances(db, route_call_id)
+def get_route_call_attendances(route_call_id: UUID, db: Session = Depends(get_db)):
+    attendances = service.get_route_call_attendances(db, str(route_call_id))
     return ApiResponse[list[RouteCallAttendeeOut]](
         success=True, data=attendances, count=len(attendances)
     )
