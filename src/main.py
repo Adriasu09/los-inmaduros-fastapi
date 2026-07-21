@@ -5,6 +5,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from src.attendances.router import flat_router as attendances_flat_router
+from src.attendances.router import nested_router as attendances_nested_router
 from src.auth.router import router as auth_router, webhook_router
 from src.core.config import settings
 from src.core.database import get_db
@@ -39,6 +41,8 @@ def create_app() -> FastAPI:
     app.include_router(webhook_router)
     app.include_router(routes_router)
     app.include_router(route_calls_router)
+    app.include_router(attendances_nested_router)
+    app.include_router(attendances_flat_router)
 
     @app.get(
         "/health",

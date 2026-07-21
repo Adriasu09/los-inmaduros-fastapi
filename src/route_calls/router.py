@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
@@ -72,10 +74,10 @@ def list_route_calls(
     response_model_exclude_unset=True,
 )
 def get_route_call_by_id(
-    route_call_id: str,
+    route_call_id: UUID,
     db: Session = Depends(get_db),
 ):
-    route_call = service.get_route_call_by_id(db, route_call_id)
+    route_call = service.get_route_call_by_id(db, str(route_call_id))
     return ApiResponse[RouteCallDetailOut](success=True, data=route_call)
 
 
@@ -85,12 +87,12 @@ def get_route_call_by_id(
     response_model_exclude_unset=True,
 )
 def update_route_call(
-    route_call_id: str,
+    route_call_id: UUID,
     data: RouteCallUpdateIn,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    route_call = service.update_route_call(db, route_call_id, user.id, data)
+    route_call = service.update_route_call(db, str(route_call_id), user.id, data)
     return ApiResponse[RouteCallOut](
         success=True, data=route_call, message="Route call updated successfully"
     )
@@ -102,11 +104,11 @@ def update_route_call(
     response_model_exclude_unset=True,
 )
 def cancel_route_call(
-    route_call_id: str,
+    route_call_id: UUID,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    route_call = service.cancel_route_call(db, route_call_id, user.id, user.role)
+    route_call = service.cancel_route_call(db, str(route_call_id), user.id, user.role)
     return ApiResponse[RouteCallOut](
         success=True, data=route_call, message="Route call cancelled successfully"
     )
@@ -118,9 +120,9 @@ def cancel_route_call(
     response_model_exclude_unset=True,
 )
 def delete_route_call(
-    route_call_id: str,
+    route_call_id: UUID,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    service.delete_route_call(db, route_call_id, user.id, user.role)
+    service.delete_route_call(db, str(route_call_id), user.id, user.role)
     return ApiResponse[dict](success=True, message="Route call deleted successfully")
