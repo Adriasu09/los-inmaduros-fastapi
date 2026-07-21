@@ -105,6 +105,10 @@ class RouteCallUpdateIn(CamelModel):
 
     @model_validator(mode="after")
     def _reject_explicit_nulls(self) -> "RouteCallUpdateIn":
+        # title/date_route/paces are NOT NULL columns. `image` is nullable in the
+        # DB but create always guarantees a cover (default fallback), so we keep
+        # that invariant on update too. `description` is intentionally NOT here:
+        # explicit null clears it (a real feature — see D16 in the contract).
         for field in ("title", "date_route", "paces", "image"):
             if field in self.model_fields_set and getattr(self, field) is None:
                 raise ValueError(f"{field} cannot be null")
