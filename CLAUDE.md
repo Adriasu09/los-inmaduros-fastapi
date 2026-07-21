@@ -67,7 +67,7 @@ clear improvement that would require changing the contract or touching the front
 Real example already applied through this process: D5 (review DELETE widened from
 "author only" to "author or ADMIN").
 
-## 3. Stack and confirmed decisions (D1–D18)
+## 3. Stack and confirmed decisions (D1–D20)
 
 | Piece | Tool |
 |---|---|
