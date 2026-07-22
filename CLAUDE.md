@@ -67,7 +67,7 @@ clear improvement that would require changing the contract or touching the front
 Real example already applied through this process: D5 (review DELETE widened from
 "author only" to "author or ADMIN").
 
-## 3. Stack and confirmed decisions (D1–D21)
+## 3. Stack and confirmed decisions (D1–D24)
 
 | Piece | Tool |
 |---|---|
@@ -162,6 +162,20 @@ Recorded decisions (summary; full detail lives in Notion):
   once), robust against a missed ping or a maintenance restart. Future path (no urgency,
   post-presentation): Stripe donations module → funded → Render paid tier or Fly.io
   (`min_machines_running=1`). Cloud Run rejected (scale-to-zero still sleeps). Approved 21-jul (D8).
+- **D22**: Telegram notification extended to route-call EDIT — a generic `sendMessage` (heading +
+  title + current date + link), fired from `update_route_call` via BackgroundTasks, same D9 rules
+  (never breaks the op). Deliberately generic (no field-by-field diff) and fires on ANY successful
+  edit. `_announce()` extracted for the shared cancel/edit shape. D8 session (22-jul).
+- **D23**: Telegram notification extended to route-call DELETE (`sendMessage` from
+  `delete_route_call`). Rationale: someone who saw the announcement on Telegram (without formally
+  joining) shouldn't turn up to a call that no longer exists. NO link (the `/events/{id}` page 404s
+  after a hard delete) — `_announce()` gained an optional `link` param. D8 session (22-jul).
+- **D24**: redesigned the CREATE Telegram caption into a structured template mirroring how the
+  community writes calls by hand (title, Spanish date/time, paces, PRIMARY + optional SECONDARY
+  meeting point, comments/description, final link). Spanish weekday/month names come from own tables
+  (`_WEEKDAYS_ES`/`_MONTHS_ES`), NOT `locale.setlocale` (avoids depending on locales installed on
+  Render). Required passing paces + point names/times into the notification. E2E-verified against the
+  real Telegram channel. D8 session (22-jul).
 
 ## 4. Architecture: domain-based structure
 
