@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from types import SimpleNamespace
 
 from src.core.schemas import CamelModel, UTCDateTime, UTCDateTimeIn
@@ -24,6 +24,14 @@ class ScheduledSchema(CamelModel):
 
 def test_utc_datetime_serializes_with_milliseconds_and_z():
     schema = StampedSchema(created_at=datetime(2026, 1, 1, 12, 0, 0))
+
+    assert schema.model_dump()["created_at"] == "2026-01-01T12:00:00.000Z"
+
+
+def test_utc_datetime_serializes_aware_without_double_offset():
+    # An AWARE datetime (e.g. from a model_dump round-trip that re-parsed a "...Z"
+    # string) must NOT produce "...000+00:00Z" — JS would read it as Invalid Date.
+    schema = StampedSchema(created_at=datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc))
 
     assert schema.model_dump()["created_at"] == "2026-01-01T12:00:00.000Z"
 

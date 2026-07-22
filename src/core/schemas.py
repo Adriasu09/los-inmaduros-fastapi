@@ -40,7 +40,14 @@ class ApiResponse(BaseModel, Generic[T]):
 
 
 def _serialize_utc_z(dt: datetime) -> str:
-    """Emit naive-UTC datetimes exactly like JS Date.toISOString(): '...T...sss Z'."""
+    """Emit a datetime exactly like JS Date.toISOString(): '...T...sssZ'.
+
+    Handles BOTH naive (assumed UTC) and aware datetimes: an aware value is
+    converted to UTC and stripped of tzinfo first, so we never emit a malformed
+    double offset like '...000+00:00Z' (which JS parses as Invalid Date).
+    """
+    if dt.tzinfo is not None:
+        dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
     return dt.isoformat(timespec="milliseconds") + "Z"
 
 
