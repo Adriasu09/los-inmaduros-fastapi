@@ -1,10 +1,11 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.orm import Session
 
 from src.auth.deps import get_current_user
 from src.auth.models import User
+from src.common.rate_limit import CREATION_LIMIT, CREATION_LIMIT_MESSAGE, limiter
 from src.core.database import get_db
 from src.core.schemas import ApiResponse
 from src.route_calls import service
@@ -25,7 +26,9 @@ router = APIRouter(prefix="/api/route-calls", tags=["Route Calls"])
     response_model=ApiResponse[RouteCallOut],
     response_model_exclude_unset=True,
 )
+@limiter.limit(CREATION_LIMIT, error_message=CREATION_LIMIT_MESSAGE)
 def create_route_call(
+    request: Request,
     data: RouteCallCreateIn,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),

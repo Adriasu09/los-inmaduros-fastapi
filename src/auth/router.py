@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from src.auth import service
 from src.auth.schemas import TestTokenData, TestTokenRequest
+from src.common.rate_limit import AUTH_LIMIT, AUTH_LIMIT_MESSAGE, limiter
 from src.core.database import get_db
 from src.core.schemas import ApiResponse
 
@@ -17,7 +18,8 @@ webhook_router = APIRouter(prefix="/api/webhooks", tags=["Webhooks"])
     response_model=ApiResponse[TestTokenData],
     response_model_exclude_unset=True,
 )
-def generate_test_token(body: TestTokenRequest):
+@limiter.limit(AUTH_LIMIT, error_message=AUTH_LIMIT_MESSAGE)
+def generate_test_token(request: Request, body: TestTokenRequest):
     """DEV ONLY (D1): generate a Clerk JWT for Postman/tests. 404 in production."""
     data = service.generate_test_token(body.email)
     return ApiResponse[TestTokenData](
