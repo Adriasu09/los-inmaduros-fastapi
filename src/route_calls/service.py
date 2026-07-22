@@ -1,11 +1,17 @@
 from collections.abc import Sequence
 from datetime import datetime, timedelta
 
+from fastapi import BackgroundTasks
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from src.attendances.models import Attendance, AttendanceStatus
 from src.auth.models import UserRole
+from src.common.notifications import (
+    notify_route_call_cancelled,
+    notify_route_call_created,
+    notify_route_call_updated,
+)
 from src.common.pagination import build_pagination
 from src.core.database import utcnow
 from src.core.exceptions import BadRequestError, ForbiddenError, NotFoundError
@@ -84,7 +90,10 @@ def _count_attendances(db: Session, route_call_id: str) -> int:
 
 
 def create_route_call(
-    db: Session, organizer_id: str, data: RouteCallCreateIn
+    db: Session,
+    organizer_id: str,
+    data: RouteCallCreateIn,
+    background_tasks: BackgroundTasks,
 ) -> RouteCallOut:
     """Create a route call (predefined or custom route) with its meeting points."""
     if data.route_id:
@@ -121,6 +130,18 @@ def create_route_call(
     )
     db.add(route_call)
     db.commit()
+
+    # D9: notify Telegram in the background — pass plain values, not the ORM
+    # object: by the time this task runs, the request's session is already closed,
+    # so touching route_call's attributes then would hit a dead session.
+    background_tasks.add_task(
+        notify_route_call_created,
+        route_call_id=route_call.id,
+        title=route_call.title,
+        description=route_call.description,
+        image=route_call.image,
+        date_route=route_call.date_route,
+    )
 
     # A just-born route call cannot have attendances yet
     return _to_route_call_out(route_call, attendances=0)
@@ -256,7 +277,11 @@ def get_route_call_by_id(db: Session, route_call_id: str) -> RouteCallDetailOut:
 
 
 def update_route_call(
-    db: Session, route_call_id: str, user_id: str, data: RouteCallUpdateIn
+    db: Session,
+    route_call_id: str,
+    user_id: str,
+    data: RouteCallUpdateIn,
+    background_tasks: BackgroundTasks,
 ) -> RouteCallOut:
     """Partial update of a route call (organizer only, SCHEDULED only — D16/D18)."""
     route_call = db.get(
@@ -288,13 +313,26 @@ def update_route_call(
         setattr(route_call, field, getattr(data, field))
     db.commit()
 
+    # D22: notify on every successful edit, same unconditional pattern as
+    # create/cancel — no diffing of which field changed.
+    background_tasks.add_task(
+        notify_route_call_updated,
+        route_call_id=route_call.id,
+        title=route_call.title,
+        date_route=route_call.date_route,
+    )
+
     total_attendances = _count_attendances(db, route_call_id)
 
     return _to_route_call_out(route_call, total_attendances)
 
 
 def cancel_route_call(
-    db: Session, route_call_id: str, user_id: str, user_role: UserRole
+    db: Session,
+    route_call_id: str,
+    user_id: str,
+    user_role: UserRole,
+    background_tasks: BackgroundTasks,
 ) -> RouteCallOut:
     """Cancel a route call (organizer or admin): soft state change, record kept."""
     route_call = db.get(
@@ -321,6 +359,14 @@ def cancel_route_call(
 
     route_call.status = RouteCallStatus.CANCELLED
     db.commit()
+
+    # D6/D9: same notification pattern as create — plain values, not the ORM object.
+    background_tasks.add_task(
+        notify_route_call_cancelled,
+        route_call_id=route_call.id,
+        title=route_call.title,
+        date_route=route_call.date_route,
+    )
 
     return _to_route_call_out(route_call, _count_attendances(db, route_call_id))
 

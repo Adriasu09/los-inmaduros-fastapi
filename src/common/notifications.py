@@ -144,14 +144,38 @@ def notify_route_call_created(
         _post("sendMessage", {"text": caption, "parse_mode": "HTML"})
 
 
-def notify_route_call_cancelled(
-    *, route_call_id: str, title: str, date_route: datetime
+def _announce(
+    heading: str, *, route_call_id: str, title: str, date_route: datetime
 ) -> None:
-    """Announce a cancellation so people who only saw it on Telegram find out (D6)."""
+    """Shared shape for the cancel/update announcements: heading + title + date + link."""
     text = (
-        "<b>❌ Quedada cancelada</b>\n\n"
+        f"<b>{heading}</b>\n\n"
         f"<b>{_escape(title)}</b>\n"
         f"📅 {_format_when(date_route)}\n\n"
         f"{_detail_url(route_call_id)}"
     )
     _post("sendMessage", {"text": text, "parse_mode": "HTML"})
+
+
+def notify_route_call_cancelled(
+    *, route_call_id: str, title: str, date_route: datetime
+) -> None:
+    """Announce a cancellation so people who only saw it on Telegram find out (D6)."""
+    _announce(
+        "❌ Quedada cancelada",
+        route_call_id=route_call_id,
+        title=title,
+        date_route=date_route,
+    )
+
+
+def notify_route_call_updated(
+    *, route_call_id: str, title: str, date_route: datetime
+) -> None:
+    """Announce an edit so people who saw it on Telegram know to check the details."""
+    _announce(
+        "✏️ Quedada actualizada",
+        route_call_id=route_call_id,
+        title=title,
+        date_route=date_route,
+    )
