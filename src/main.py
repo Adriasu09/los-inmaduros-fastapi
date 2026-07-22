@@ -44,8 +44,13 @@ def create_app() -> FastAPI:
     app.include_router(attendances_nested_router)
     app.include_router(attendances_flat_router)
 
-    @app.get(
+    # GET + HEAD: FastAPI's @app.get answers GET only (unlike raw Starlette), so a
+    # HEAD probe 405s. UptimeRobot's free tier can ONLY send HEAD, so /health must
+    # accept it to keep the service awake (D21). HEAD runs the handler and drops the
+    # body — the SELECT 1 still verifies the DB.
+    @app.api_route(
         "/health",
+        methods=["GET", "HEAD"],
         response_model=ApiResponse[dict],
         response_model_exclude_unset=True,
     )
