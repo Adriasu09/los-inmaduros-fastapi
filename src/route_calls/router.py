@@ -1,10 +1,11 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, Request
 from sqlalchemy.orm import Session
 
 from src.auth.deps import get_current_user
 from src.auth.models import User
+from src.common.rate_limit import CREATION_LIMIT, CREATION_LIMIT_MESSAGE, limiter
 from src.core.database import get_db
 from src.core.schemas import ApiResponse
 from src.route_calls import service
@@ -25,12 +26,15 @@ router = APIRouter(prefix="/api/route-calls", tags=["Route Calls"])
     response_model=ApiResponse[RouteCallOut],
     response_model_exclude_unset=True,
 )
+@limiter.limit(CREATION_LIMIT, error_message=CREATION_LIMIT_MESSAGE)
 def create_route_call(
+    request: Request,
     data: RouteCallCreateIn,
+    background_tasks: BackgroundTasks,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    route_call = service.create_route_call(db, user.id, data)
+    route_call = service.create_route_call(db, user.id, data, background_tasks)
     return ApiResponse[RouteCallOut](
         success=True, data=route_call, message="Route call created successfully"
     )
@@ -89,10 +93,13 @@ def get_route_call_by_id(
 def update_route_call(
     route_call_id: UUID,
     data: RouteCallUpdateIn,
+    background_tasks: BackgroundTasks,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    route_call = service.update_route_call(db, str(route_call_id), user.id, data)
+    route_call = service.update_route_call(
+        db, str(route_call_id), user.id, data, background_tasks
+    )
     return ApiResponse[RouteCallOut](
         success=True, data=route_call, message="Route call updated successfully"
     )
@@ -105,10 +112,13 @@ def update_route_call(
 )
 def cancel_route_call(
     route_call_id: UUID,
+    background_tasks: BackgroundTasks,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    route_call = service.cancel_route_call(db, str(route_call_id), user.id, user.role)
+    route_call = service.cancel_route_call(
+        db, str(route_call_id), user.id, user.role, background_tasks
+    )
     return ApiResponse[RouteCallOut](
         success=True, data=route_call, message="Route call cancelled successfully"
     )
@@ -121,8 +131,11 @@ def cancel_route_call(
 )
 def delete_route_call(
     route_call_id: UUID,
+    background_tasks: BackgroundTasks,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    service.delete_route_call(db, str(route_call_id), user.id, user.role)
+    service.delete_route_call(
+        db, str(route_call_id), user.id, user.role, background_tasks
+    )
     return ApiResponse[dict](success=True, message="Route call deleted successfully")

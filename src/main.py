@@ -8,7 +8,10 @@ from sqlalchemy.orm import Session
 
 from src.attendances.router import flat_router as attendances_flat_router
 from src.attendances.router import nested_router as attendances_nested_router
+from slowapi.errors import RateLimitExceeded
+
 from src.auth.router import router as auth_router, webhook_router
+from src.common.rate_limit import limiter, rate_limit_exceeded_handler
 from src.common.scheduler import start_scheduler
 from src.core.config import settings
 from src.core.database import get_db
@@ -50,6 +53,13 @@ def create_app() -> FastAPI:
     )
 
     register_exception_handlers(app)
+
+    # Rate limiting (slowapi): the decorators on the routes need the limiter on
+    # app.state, and RateLimitExceeded is translated to the 429 error envelope.
+    # RateLimitExceeded subclasses StarletteHTTPException, so this more specific
+    # handler wins over the generic one registered above.
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 
     # Module routers will be registered here, one per session:
     app.include_router(auth_router)

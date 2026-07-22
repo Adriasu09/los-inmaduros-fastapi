@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 
 from src.attendances import service
@@ -12,6 +12,7 @@ from src.attendances.schemas import (
 )
 from src.auth.deps import get_current_user
 from src.auth.models import User
+from src.common.rate_limit import CREATION_LIMIT, CREATION_LIMIT_MESSAGE, limiter
 from src.core.database import get_db
 from src.core.schemas import ApiResponse
 
@@ -44,7 +45,9 @@ def check_attendance(
     response_model=ApiResponse[AttendanceOut],
     response_model_exclude_unset=True,
 )
+@limiter.limit(CREATION_LIMIT, error_message=CREATION_LIMIT_MESSAGE)
 def confirm_attendance(
+    request: Request,
     route_call_id: UUID,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
