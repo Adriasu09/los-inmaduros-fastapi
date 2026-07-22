@@ -9,8 +9,15 @@ from sqlalchemy.orm import Session
 
 from src.auth.deps import get_current_user, require_admin
 from src.auth.models import User, UserRole
-from src.core.database import engine, get_db
-from src.main import app
+from src.core.config import settings
+
+# Disable the background scheduler for the whole test suite: it would open its own
+# real session and UPDATE route-call statuses in the SHARED database (outside the
+# savepoint), so it must never start during tests. Set before the app's lifespan runs.
+settings.SCHEDULER_ENABLED = False
+
+from src.core.database import engine, get_db  # noqa: E402
+from src.main import app  # noqa: E402
 
 
 @pytest.fixture()

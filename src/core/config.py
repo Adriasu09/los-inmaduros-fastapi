@@ -9,6 +9,10 @@ class Settings(BaseSettings):
 
     CORS_ORIGINS: str = "http://localhost:3000"
 
+    # Background scheduler (route-call status transitions). Tests set it to False
+    # so pytest never starts a scheduler that writes to the shared database.
+    SCHEDULER_ENABLED: bool = True
+
     CLERK_SECRET_KEY: str | None = None
     CLERK_WEBHOOK_SECRET: str | None = None
     SUPABASE_URL: str | None = None
