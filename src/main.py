@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from typing import Annotated
 
 from fastapi import Depends, FastAPI
@@ -8,6 +9,7 @@ from sqlalchemy.orm import Session
 from src.attendances.router import flat_router as attendances_flat_router
 from src.attendances.router import nested_router as attendances_nested_router
 from src.auth.router import router as auth_router, webhook_router
+from src.common.scheduler import start_scheduler
 from src.core.config import settings
 from src.core.database import get_db
 from src.core.exceptions import register_exception_handlers
@@ -17,12 +19,25 @@ from src.route_calls.router import router as route_calls_router
 from src.routes.router import router as routes_router
 
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """On startup: kick off the route-call status scheduler (unless disabled, e.g.
+    in tests). On shutdown: stop it cleanly."""
+    scheduler = start_scheduler() if settings.SCHEDULER_ENABLED else None
+    try:
+        yield
+    finally:
+        if scheduler is not None:
+            scheduler.shutdown(wait=False)
+
+
 def create_app() -> FastAPI:
     """App factory: build and configure the FastAPI application."""
     app = FastAPI(
         title="Los Inmaduros Rollers Madrid API",
         docs_url="/api-docs",
         openapi_url="/api-docs.json",
+        lifespan=lifespan,
     )
 
     # CORS: only these origins may call the API from a browser
