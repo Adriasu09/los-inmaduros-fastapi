@@ -20,6 +20,10 @@ class Settings(BaseSettings):
     TELEGRAM_BOT_TOKEN: str | None = None
     TELEGRAM_CHAT_ID: str | None = None
 
+    # Frontend base URL, used to build the /events/{id} link in Telegram
+    # notifications. Defaults to the production frontend (D9).
+    WEBSITE_URL: str = "https://los-inmaduros-rollers.vercel.app"
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
