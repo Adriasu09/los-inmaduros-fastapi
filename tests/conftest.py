@@ -16,8 +16,14 @@ from src.core.config import settings
 # savepoint), so it must never start during tests. Set before the app's lifespan runs.
 settings.SCHEDULER_ENABLED = False
 
+from src.common.rate_limit import limiter  # noqa: E402
 from src.core.database import engine, get_db  # noqa: E402
 from src.main import app  # noqa: E402
+
+# Disable rate limiting for the whole suite: otherwise the shared counters would
+# make tests order-dependent and non-deterministic (a route hit by several tests
+# could 429). The dedicated 429 test re-enables it locally on a throwaway app.
+limiter.enabled = False
 
 
 @pytest.fixture()
