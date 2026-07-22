@@ -21,6 +21,14 @@ _UTC = ZoneInfo("UTC")
 # local wall-clock time people actually expect.
 _MADRID = ZoneInfo("Europe/Madrid")
 
+# Hardcoded (not locale.setlocale): locale availability differs between the dev
+# machine and Render, and process-wide locale state is a hazard not worth it here.
+_WEEKDAYS_ES = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
+_MONTHS_ES = [
+    "ene", "feb", "mar", "abr", "may", "jun",
+    "jul", "ago", "sep", "oct", "nov", "dic",
+]
+
 
 def _escape(text: str) -> str:
     """Escape plain text for Telegram HTML mode (only these three matter)."""
@@ -55,10 +63,28 @@ def _close_dangling_tags(text: str) -> str:
     return result
 
 
+def _to_madrid(value: datetime) -> datetime:
+    """Naive-UTC (or aware) datetime -> aware datetime in Madrid local time."""
+    aware = value.replace(tzinfo=_UTC) if value.tzinfo is None else value
+    return aware.astimezone(_MADRID)
+
+
 def _format_when(date_route: datetime) -> str:
-    """Naive-UTC datetime -> 'dd/mm/YYYY HH:MM' in Madrid local time."""
-    aware = date_route.replace(tzinfo=_UTC) if date_route.tzinfo is None else date_route
-    return aware.astimezone(_MADRID).strftime("%d/%m/%Y %H:%M")
+    """'dd/mm/YYYY HH:MM' in Madrid local time (cancel/update/delete announcements)."""
+    return _to_madrid(date_route).strftime("%d/%m/%Y %H:%M")
+
+
+def _format_date_es(value: datetime) -> str:
+    """'Jueves, 23 de jul de 2026' in Madrid local time."""
+    madrid = _to_madrid(value)
+    weekday = _WEEKDAYS_ES[madrid.weekday()]
+    month = _MONTHS_ES[madrid.month - 1]
+    return f"{weekday}, {madrid.day} de {month} de {madrid.year}"
+
+
+def _format_time_es(value: datetime) -> str:
+    """'20:00' in Madrid local time."""
+    return _to_madrid(value).strftime("%H:%M")
 
 
 def _detail_url(route_call_id: str) -> str:
@@ -75,20 +101,47 @@ def _finalize_body(prefix: str) -> str:
 
 
 def _build_caption(
-    title: str, description: str | None, date_route: datetime, link: str
+    title: str,
+    date_route: datetime,
+    paces: list[str],
+    primary_point_name: str,
+    secondary_point_name: str | None,
+    secondary_point_time: datetime | None,
+    description: str | None,
+    link: str,
 ) -> str:
-    """Assemble the caption, capped at 1024 (UTF-16) with the link ALWAYS last"""
-    
-    header = f"<b>{_escape(title)}</b>"
-    when = f"📅 {_format_when(date_route)}"
+    """Assemble the caption, capped at 1024 (UTF-16) with the link ALWAYS last.
+
+    Only the "Comentarios" block (the description) is trimmed on overflow — every
+    other block (header, schedule, meeting points, link) is fixed-size and never cut.
+    """
+    header = f'<b>¡Rut4! "{_escape(title)}"</b>'
+    info_block = "\n".join(
+        [
+            f"• Fecha: {_format_date_es(date_route)}",
+            f"• Hora: {_format_time_es(date_route)} h",
+            f"• Ritmo: {', '.join(paces)}",
+            f"• Punto de encuentro: {_escape(primary_point_name)}",
+        ]
+    )
+
+    secondary_block = None
+    if secondary_point_name:
+        secondary_lines = [f"• SEGUNDO Punto de encuentro: {_escape(secondary_point_name)}"]
+        if secondary_point_time is not None:
+            secondary_lines.append(f"• Hora: {_format_time_es(secondary_point_time)} h")
+        secondary_block = "\n".join(secondary_lines)
+
     body = _clean_caption_html(description) if description else ""
 
     def assemble(desc: str) -> str:
-        parts = [header]
+        blocks = [header, info_block]
+        if secondary_block:
+            blocks.append(secondary_block)
         if desc:
-            parts.append(desc)
-        parts.extend([when, link])
-        return "\n\n".join(parts)
+            blocks.append(f"• Comentarios: {desc}")
+        blocks.append(f"Puedes ver más detalles y apuntarte en: {link}")
+        return "\n\n".join(blocks)
 
     if _tg_len(assemble(body)) <= CAPTION_LIMIT:
         return assemble(body)
@@ -135,25 +188,38 @@ def notify_route_call_created(
     description: str | None,
     image: str | None,
     date_route: datetime,
+    paces: list[str],
+    primary_point_name: str,
+    secondary_point_name: str | None = None,
+    secondary_point_time: datetime | None = None,
 ) -> None:
     """Announce a new route call: sendPhoto with the cover, or sendMessage if none."""
-    caption = _build_caption(title, description, date_route, _detail_url(route_call_id))
+    caption = _build_caption(
+        title,
+        date_route,
+        paces,
+        primary_point_name,
+        secondary_point_name,
+        secondary_point_time,
+        description,
+        _detail_url(route_call_id),
+    )
     if image:
         _post("sendPhoto", {"photo": image, "caption": caption, "parse_mode": "HTML"})
     else:
         _post("sendMessage", {"text": caption, "parse_mode": "HTML"})
 
 
-def _announce(
-    heading: str, *, route_call_id: str, title: str, date_route: datetime
-) -> None:
-    """Shared shape for the cancel/update announcements: heading + title + date + link."""
+def _announce(heading: str, *, title: str, date_route: datetime, link: str | None) -> None:
+    """Shared shape for the cancel/update/delete announcements: heading + title +
+    date, with the detail link ONLY when the route call still exists to link to."""
     text = (
         f"<b>{heading}</b>\n\n"
         f"<b>{_escape(title)}</b>\n"
-        f"📅 {_format_when(date_route)}\n\n"
-        f"{_detail_url(route_call_id)}"
+        f"📅 {_format_when(date_route)}"
     )
+    if link:
+        text += f"\n\n{link}"
     _post("sendMessage", {"text": text, "parse_mode": "HTML"})
 
 
@@ -162,10 +228,10 @@ def notify_route_call_cancelled(
 ) -> None:
     """Announce a cancellation so people who only saw it on Telegram find out (D6)."""
     _announce(
-        "❌ Quedada cancelada",
-        route_call_id=route_call_id,
+        "❌ Rut4 cancelada",
         title=title,
         date_route=date_route,
+        link=_detail_url(route_call_id),
     )
 
 
@@ -174,8 +240,15 @@ def notify_route_call_updated(
 ) -> None:
     """Announce an edit so people who saw it on Telegram know to check the details."""
     _announce(
-        "✏️ Quedada actualizada",
-        route_call_id=route_call_id,
+        "✏️ Rut4 actualizada",
         title=title,
         date_route=date_route,
+        link=_detail_url(route_call_id),
     )
+
+
+def notify_route_call_deleted(*, title: str, date_route: datetime) -> None:
+    """Announce a deletion (D23): no link, the route call no longer resolves —
+    people who saw it on Telegram but never confirmed attendance should still
+    know not to show up."""
+    _announce("🗑️ Rut4 eliminada", title=title, date_route=date_route, link=None)

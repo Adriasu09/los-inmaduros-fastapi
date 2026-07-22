@@ -131,8 +131,11 @@ def cancel_route_call(
 )
 def delete_route_call(
     route_call_id: UUID,
+    background_tasks: BackgroundTasks,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    service.delete_route_call(db, str(route_call_id), user.id, user.role)
+    service.delete_route_call(
+        db, str(route_call_id), user.id, user.role, background_tasks
+    )
     return ApiResponse[dict](success=True, message="Route call deleted successfully")

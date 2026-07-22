@@ -10,6 +10,7 @@ from src.auth.models import UserRole
 from src.common.notifications import (
     notify_route_call_cancelled,
     notify_route_call_created,
+    notify_route_call_deleted,
     notify_route_call_updated,
 )
 from src.common.pagination import build_pagination
@@ -18,6 +19,7 @@ from src.core.exceptions import BadRequestError, ForbiddenError, NotFoundError
 from src.core.schemas import Pagination
 from src.route_calls.models import (
     MeetingPoint,
+    MeetingPointType,
     RouteCall,
     RouteCallStatus,
     RoutePace,
@@ -131,9 +133,16 @@ def create_route_call(
     db.add(route_call)
     db.commit()
 
-    # D9: notify Telegram in the background — pass plain values, not the ORM
+    # D9/D23: notify Telegram in the background — pass plain values, not the ORM
     # object: by the time this task runs, the request's session is already closed,
     # so touching route_call's attributes then would hit a dead session.
+    primary_point = next(
+        p for p in route_call.meeting_points if p.type is MeetingPointType.PRIMARY
+    )
+    secondary_point = next(
+        (p for p in route_call.meeting_points if p.type is MeetingPointType.SECONDARY),
+        None,
+    )
     background_tasks.add_task(
         notify_route_call_created,
         route_call_id=route_call.id,
@@ -141,6 +150,10 @@ def create_route_call(
         description=route_call.description,
         image=route_call.image,
         date_route=route_call.date_route,
+        paces=[pace.value for pace in route_call.paces],
+        primary_point_name=primary_point.name,
+        secondary_point_name=secondary_point.name if secondary_point else None,
+        secondary_point_time=secondary_point.time if secondary_point else None,
     )
 
     # A just-born route call cannot have attendances yet
@@ -372,7 +385,11 @@ def cancel_route_call(
 
 
 def delete_route_call(
-    db: Session, route_call_id: str, user_id: str, user_role: UserRole
+    db: Session,
+    route_call_id: str,
+    user_id: str,
+    user_role: UserRole,
+    background_tasks: BackgroundTasks,
 ) -> None:
     """Hard delete (organizer or admin), only with zero attendances (any status)."""
     route_call = db.get(RouteCall, route_call_id)
@@ -389,7 +406,15 @@ def delete_route_call(
             "Cannot delete a route call with attendances. Cancel it instead."
         )
 
+    # D23: extract values BEFORE deleting — once the row is gone, the ORM
+    # object can no longer be trusted to reload its attributes.
+    title, date_route = route_call.title, route_call.date_route
+
     # PostgreSQL's ON DELETE CASCADE removes the meeting points
     # (passive_deletes=True keeps the ORM from deleting them row by row)
     db.delete(route_call)
     db.commit()
+
+    background_tasks.add_task(
+        notify_route_call_deleted, title=title, date_route=date_route
+    )

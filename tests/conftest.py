@@ -16,6 +16,16 @@ from src.core.config import settings
 # savepoint), so it must never start during tests. Set before the app's lifespan runs.
 settings.SCHEDULER_ENABLED = False
 
+# Force Telegram notifications off for the whole suite, regardless of the real
+# .env: tests that exercise create/cancel/update/delete route calls through the
+# TestClient (test_route_calls.py) would otherwise fire real BackgroundTasks that
+# call the real Telegram Bot API with whatever credentials happen to be configured
+# locally — spamming the real channel on every test run. test_notifications.py
+# mocks httpx.post directly and monkeypatches its own fake credentials per test,
+# so it is unaffected by this override.
+settings.TELEGRAM_BOT_TOKEN = None
+settings.TELEGRAM_CHAT_ID = None
+
 from src.common.rate_limit import limiter  # noqa: E402
 from src.core.database import engine, get_db  # noqa: E402
 from src.main import app  # noqa: E402
