@@ -5,11 +5,11 @@ from src.common.pagination import build_pagination
 from src.core.exceptions import NotFoundError
 from src.favorites.models import Favorite
 from src.photos.models import Photo, PhotoStatus
+from src.photos.schemas import PhotoOut
 from src.reviews.models import Review
 from src.route_calls.models import RouteCall
 from src.routes.models import Route
 from src.routes.schemas import (
-    PhotoOut,
     ReviewOut,
     RouteCounts,
     RouteDetailOut,
