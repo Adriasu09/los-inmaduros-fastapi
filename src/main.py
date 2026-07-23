@@ -18,6 +18,7 @@ from src.core.database import get_db
 from src.core.exceptions import register_exception_handlers
 import src.core.models_registry  # noqa: F401  (register all models before any is used)
 from src.core.schemas import ApiResponse
+from src.photos.router import router as photos_router
 from src.route_calls.router import router as route_calls_router
 from src.routes.router import router as routes_router
 
@@ -68,6 +69,7 @@ def create_app() -> FastAPI:
     app.include_router(route_calls_router)
     app.include_router(attendances_nested_router)
     app.include_router(attendances_flat_router)
+    app.include_router(photos_router)
 
     # GET + HEAD: FastAPI's @app.get answers GET only (unlike raw Starlette), so a
     # HEAD probe 405s. UptimeRobot's free tier can ONLY send HEAD, so /health must

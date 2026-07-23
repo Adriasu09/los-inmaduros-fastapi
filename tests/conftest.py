@@ -11,29 +11,20 @@ from src.auth.deps import get_current_user, require_admin
 from src.auth.models import User, UserRole
 from src.core.config import settings
 
-# Disable the background scheduler for the whole test suite: it would open its own
-# real session and UPDATE route-call statuses in the SHARED database (outside the
-# savepoint), so it must never start during tests. Set before the app's lifespan runs.
-settings.SCHEDULER_ENABLED = False
-
-# Force Telegram notifications off for the whole suite, regardless of the real
-# .env: tests that exercise create/cancel/update/delete route calls through the
-# TestClient (test_route_calls.py) would otherwise fire real BackgroundTasks that
-# call the real Telegram Bot API with whatever credentials happen to be configured
-# locally — spamming the real channel on every test run. test_notifications.py
-# mocks httpx.post directly and monkeypatches its own fake credentials per test,
-# so it is unaffected by this override.
-settings.TELEGRAM_BOT_TOKEN = None
-settings.TELEGRAM_CHAT_ID = None
-
 from src.common.rate_limit import limiter  # noqa: E402
 from src.core.database import engine, get_db  # noqa: E402
 from src.main import app  # noqa: E402
+import src.photos.service as _photos_service  # noqa: E402
 
-# Disable rate limiting for the whole suite: otherwise the shared counters would
-# make tests order-dependent and non-deterministic (a route hit by several tests
-# could 429). The dedicated 429 test re-enables it locally on a throwaway app.
+settings.SCHEDULER_ENABLED = False
+
+settings.TELEGRAM_BOT_TOKEN = None
+settings.TELEGRAM_CHAT_ID = None
+
 limiter.enabled = False
+
+FAKE_STORAGE_URL = "https://storage.test.local/fake-cover.jpg"
+_photos_service.upload_image = lambda *args, **kwargs: FAKE_STORAGE_URL
 
 
 @pytest.fixture()

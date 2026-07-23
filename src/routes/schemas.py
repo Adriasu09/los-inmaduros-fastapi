@@ -1,7 +1,7 @@
 from pydantic import Field
 
 from src.core.schemas import CamelModel, Pagination, UTCDateTime
-from src.photos.models import PhotoContext, PhotoStatus
+from src.photos.schemas import PhotoOut
 from src.routes.models import RouteLevel
 
 
@@ -24,24 +24,6 @@ class ReviewOut(CamelModel):
     created_at: UTCDateTime
     updated_at: UTCDateTime
     user: UserPublicOut
-
-
-class PhotoOut(CamelModel):
-    """Full photo row — Prisma had no `select` on photos, so Express emitted every column."""
-
-    id: str
-    context: PhotoContext
-    route_id: str | None
-    route_call_id: str | None
-    user_id: str
-    image_url: str
-    caption: str | None
-    status: PhotoStatus
-    moderated_at: UTCDateTime | None
-    moderated_by: str | None
-    moderation_notes: str | None
-    created_at: UTCDateTime
-    updated_at: UTCDateTime
 
 
 class RouteCounts(CamelModel):
