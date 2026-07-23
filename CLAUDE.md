@@ -34,6 +34,14 @@ Web app for an inline-skating community in Madrid: predefined routes, skate meet
 attendance, reviews, favorites and photos with moderation. The project **already exists and works**
 (V2 in Express); here we port it to FastAPI **without breaking the frontend**.
 
+> **CURRENT STATE (23-jul, post-D9): the backend CORE is COMPLETE and live in production** — auth,
+> routes, route-calls (CRUD + status scheduler + Telegram + rate limit + cover-photo upload),
+> attendances. 119 tests green. **NEXT phase = FRONTEND (Fase 7)**, which begins with a BACKEND
+> task done here first: **full route-call editing including meeting points** (PATCH accepts
+> `meetingPoints` + an Alembic migration adding `updatedAt` to `meeting_points`) BEFORE the edit UI.
+> Also pending (frontend repo): a timezone bug in `date-utils.ts` (pin `Europe/Madrid`).
+> Reviews / favorites / photos-galleries / moderation stay parked (post-presentation).
+
 - Frontend (NOT touched from this repo): Next.js 16 + Clerk + TanStack Query, deployed on Vercel.
 - Database: PostgreSQL on Supabase (the same one the current Express backend uses).
 - Bootcamp final project (Factoría F5). Code freeze on **July 25**; presentation on July 27.
