@@ -67,6 +67,41 @@ def test_admin_passes_admin_endpoint(client, as_admin):
     assert response.json()["id"] == as_admin.id
 
 
+# --- Scenario: GET /api/auth/me returns the local user of the current session ---
+def test_me_returns_current_user(client, as_user):
+    response = client.get("/api/auth/me")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is True
+    data = body["data"]
+    assert data["id"] == as_user.id
+    assert data["clerkId"] == as_user.clerk_id
+    assert data["email"] == as_user.email
+    assert data["role"] == "USER"
+    # Exactly the 9 contract fields: guards against leaking an internal field
+    assert set(data.keys()) == {
+        "id", "clerkId", "email", "name", "lastName",
+        "imageUrl", "role", "createdAt", "updatedAt",
+    }
+
+
+def test_me_returns_admin_role(client, as_admin):
+    response = client.get("/api/auth/me")
+
+    assert response.status_code == 200
+    assert response.json()["data"]["role"] == "ADMIN"
+
+
+def test_me_without_token_returns_401(client):
+    response = client.get("/api/auth/me")
+
+    assert response.status_code == 401
+    body = response.json()
+    assert body["success"] is False
+    assert body["message"] == "No authentication token provided"
+
+
 # --- Scenario: A first-time authenticated user is created in the database ---
 def test_first_login_creates_user_with_role_user(db_session, monkeypatch):
     clerk_id = f"user_{uuid4().hex[:12]}"
