@@ -12,7 +12,7 @@ from src.auth.models import User, UserRole
 from src.core.config import settings
 
 from src.common.rate_limit import limiter  # noqa: E402
-from src.core.database import engine, get_db  # noqa: E402
+from src.core.database import engine, get_db, utcnow  # noqa: E402
 from src.main import app  # noqa: E402
 import src.photos.service as _photos_service  # noqa: E402
 
@@ -59,6 +59,8 @@ def fake_user(role: UserRole = UserRole.USER) -> User:
         name="Test",
         last_name="User",
         role=role,
+        created_at=utcnow(),
+        updated_at=utcnow(),
     )
 
 

@@ -4,11 +4,11 @@ from urllib.parse import urlparse
 from pydantic import Field, field_validator, model_validator
 
 from src.attendances.models import AttendanceStatus
+from src.auth.schemas import UserPublicOut
 from src.core.database import utcnow
 from src.core.schemas import CamelModel, UTCDateTime, UTCDateTimeIn
 from src.route_calls.models import MeetingPointType, RoutePace, RouteCallStatus
 from src.routes.models import RouteLevel
-from src.routes.schemas import UserPublicOut
 
 
 def validate_image_url(value: str | None) -> str | None:

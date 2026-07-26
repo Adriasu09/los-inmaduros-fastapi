@@ -4,13 +4,25 @@ from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 
 from src.auth import service
-from src.auth.schemas import TestTokenData, TestTokenRequest
+from src.auth.deps import get_current_user
+from src.auth.models import User
+from src.auth.schemas import TestTokenData, TestTokenRequest, UserOut
 from src.common.rate_limit import AUTH_LIMIT, AUTH_LIMIT_MESSAGE, limiter
 from src.core.database import get_db
 from src.core.schemas import ApiResponse
 
 router = APIRouter(prefix="/api/auth", tags=["Auth"])
 webhook_router = APIRouter(prefix="/api/webhooks", tags=["Webhooks"])
+
+
+@router.get(
+    "/me",
+    response_model=ApiResponse[UserOut],
+    response_model_exclude_unset=True,
+)
+def get_me(user: Annotated[User, Depends(get_current_user)]):
+    """The local user of the current session"""
+    return ApiResponse[UserOut](success=True, data=UserOut.model_validate(user))
 
 
 @router.post(
