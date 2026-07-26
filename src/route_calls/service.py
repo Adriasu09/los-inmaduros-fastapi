@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session, joinedload, selectinload
 
 from src.attendances.models import Attendance, AttendanceStatus
 from src.auth.models import UserRole
+from src.auth.schemas import UserPublicOut
 from src.common.notifications import (
     notify_route_call_cancelled,
     notify_route_call_created,
@@ -35,7 +36,6 @@ from src.route_calls.schemas import (
     RouteSummaryOut,
 )
 from src.routes.models import Route
-from src.routes.schemas import UserPublicOut
 
 # Copied verbatim from Express (route-calls.service.ts)
 DEFAULT_ROUTE_CALL_IMAGE = (

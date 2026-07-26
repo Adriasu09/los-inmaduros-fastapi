@@ -28,11 +28,24 @@
 | GET | `/api-docs` | API docs (in FastAPI: automatic OpenAPI) | Public |
 | GET | `/api-docs.json` | OpenAPI spec as JSON | Public |
 
-## auth — `/api/auth` (with `authLimiter`)
+## auth — `/api/auth`
 
 | Method | Route | What it does | Auth |
 |---|---|---|---|
-| POST | `/api/auth/test-token` | **DEV ONLY** (D1): generates a Clerk JWT from an email (404 in production; 400 without email or with an invalid email format — EmailStr, deliberate improvement approved in D3 session; 404 if the email does not exist in Clerk) | Public |
+| GET | `/api/auth/me` | **D25, addition over Express** (Fase 7): returns the local `User` row of the current session (`UserOut`: `id`, `clerkId`, `email`, `name`, `lastName`, `imageUrl`, `role`, `createdAt`, `updatedAt`). **No rate limiter** — unlike its neighbor below, this is a plain read the frontend calls on every page load (React Query dedupes/caches it) | Auth |
+| POST | `/api/auth/test-token` (with `authLimiter`) | **DEV ONLY** (D1): generates a Clerk JWT from an email (404 in production; 400 without email or with an invalid email format — EmailStr, deliberate improvement approved in D3 session; 404 if the email does not exist in Clerk) | Public |
+
+**Why `/me` exists:** the browser cannot query the database, only this API. `routeCall.organizerId`
+is our internal UUID, but the browser only has the Clerk identity (`clerkId`, e.g. `user_2abc...`)
+handed to it locally by the Clerk SDK — the two never match. And `role` never appeared in any
+response schema (every embedded user across the API uses the public slice below). `/me` closes
+both gaps so the frontend can decide, client-side, whether to render "Edit"/"Delete"/admin-only UI
+— **it is a UX convenience, not a security boundary**: the service layer still enforces
+organizer/admin permissions server-side (403) regardless of what the UI shows.
+
+`UserOut` is a **PRIVATE** shape (carries `email` and `role`): it is returned ONLY here, never for
+a user embedded in a public response. Every other endpoint that embeds a user (review author,
+route-call organizer, attendee) uses `UserPublicOut` = `{id, name, imageUrl}`.
 
 ## webhooks — `/api/webhooks` (D14, addition over Express)
 

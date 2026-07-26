@@ -1,7 +1,7 @@
 from src.attendances.models import AttendanceStatus
+from src.auth.schemas import UserPublicOut
 from src.core.schemas import CamelModel, UTCDateTime
 from src.route_calls.schemas import RouteCallOut
-from src.routes.schemas import UserPublicOut
 
 
 class AttendanceOut(CamelModel):
