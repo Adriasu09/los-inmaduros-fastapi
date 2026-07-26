@@ -1,16 +1,9 @@
 from pydantic import Field
 
+from src.auth.schemas import UserPublicOut
 from src.core.schemas import CamelModel, Pagination, UTCDateTime
 from src.photos.schemas import PhotoOut
 from src.routes.models import RouteLevel
-
-
-class UserPublicOut(CamelModel):
-    """Public slice of a user, as embedded in each review (Express' `select`)."""
-
-    id: str
-    name: str | None
-    image_url: str | None
 
 
 class ReviewOut(CamelModel):
